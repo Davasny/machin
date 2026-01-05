@@ -1,5 +1,5 @@
 import { v7 as uuidv7 } from "uuid";
-import { withDrizzleSQLite } from "../../adapters/drizzle/sqlite.js";
+import { withDrizzleSQLite } from "@/adapters/drizzle/sqlite.js";
 import { subscribeMachineConfig } from "../subscribe-machine-config.js";
 import { closeDb, db } from "./db.js";
 

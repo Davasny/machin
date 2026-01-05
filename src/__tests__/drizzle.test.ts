@@ -1,8 +1,8 @@
 import { integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { withDrizzlePg } from "../adapters/drizzle/pg.js";
-import { ActorAlreadyExistsError } from "../errors.js";
-import { machine } from "../machine.js";
+import { withDrizzlePg } from "@/adapters/drizzle/pg.js";
+import { ActorAlreadyExistsError } from "@/errors.js";
+import { machine } from "@/machine.js";
 
 // Define a test table
 const subscriptionsTable = pgTable("subscriptions", {

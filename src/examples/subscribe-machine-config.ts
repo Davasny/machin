@@ -1,4 +1,4 @@
-import { machine } from "../machine.js";
+import { machine } from "@/machine.js";
 
 type SubContext = { stripeCustomerId: string | null };
 

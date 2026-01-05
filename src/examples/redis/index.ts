@@ -1,6 +1,6 @@
 import { createClient } from "redis";
 import { v7 as uuidv7 } from "uuid";
-import { withRedis } from "../../adapters/redis/index.js";
+import { withRedis } from "@/adapters/redis/index.js";
 import { subscribeMachineConfig } from "../subscribe-machine-config.js";
 
 const client = await createClient({

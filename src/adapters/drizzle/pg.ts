@@ -1,5 +1,5 @@
 import type { PgTable } from "drizzle-orm/pg-core";
-import type { BoundMachine, MachineDefinition } from "../../types";
+import type { BoundMachine, MachineDefinition } from "@/types";
 import {
   BoundMachineImpl,
   DrizzleAdapter,

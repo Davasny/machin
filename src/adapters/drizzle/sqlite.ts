@@ -1,5 +1,5 @@
 import type { SQLiteTableWithColumns } from "drizzle-orm/sqlite-core";
-import type { BoundMachine, MachineDefinition } from "../../types.js";
+import type { BoundMachine, MachineDefinition } from "@/types.js";
 import {
   BoundMachineImpl,
   DrizzleAdapter,

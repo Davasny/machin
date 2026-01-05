@@ -1,5 +1,5 @@
 import { v7 as uuidv7 } from "uuid";
-import { withDrizzlePg } from "../../adapters/drizzle/pg.js";
+import { withDrizzlePg } from "@/adapters/drizzle/pg.js";
 import { subscribeMachineConfig } from "../subscribe-machine-config.js";
 import { db } from "./db.js";
 import { subscriptionsTable } from "./schema.js";

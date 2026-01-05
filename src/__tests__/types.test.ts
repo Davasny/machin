@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
-import { machine } from "../machine.js";
-import type { PayloadForEvent } from "../types.js";
+import { machine } from "@/machine.js";
+import type { PayloadForEvent } from "@/types.js";
 
 describe("Type Inference", () => {
   it("infers states from config keys", () => {

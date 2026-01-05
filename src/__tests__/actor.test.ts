@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createActorFromSnapshot } from "../actor.js";
-import { machine } from "../machine.js";
-import type { Adapter, Snapshot } from "../types.js";
+import { createActorFromSnapshot } from "@/actor.js";
+import { machine } from "@/machine.js";
+import type { Adapter, Snapshot } from "@/types.js";
 
 describe("Actor", () => {
   // Simple machine for basic tests

@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm";
-import { createActorFromSnapshot } from "../../actor.js";
-import { ActorAlreadyExistsError } from "../../errors.js";
+import { createActorFromSnapshot } from "@/actor.js";
+import { ActorAlreadyExistsError } from "@/errors.js";
 import type {
   Actor,
   Adapter,
   BoundMachine,
   MachineDefinition,
   Snapshot,
-} from "../../types.js";
+} from "@/types.js";
 
 // ============================================================
 // Type Utilities for Drizzle

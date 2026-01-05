@@ -3,10 +3,10 @@ import {
   RedisAdapter,
   type RedisClientLike,
   withRedis,
-} from "../adapters/redis/index.js";
-import { ActorAlreadyExistsError } from "../errors.js";
-import { machine } from "../machine.js";
-import type { Snapshot } from "../types.js";
+} from "@/adapters/redis/index.js";
+import { ActorAlreadyExistsError } from "@/errors.js";
+import { machine } from "@/machine.js";
+import type { Snapshot } from "@/types.js";
 
 describe("RedisAdapter", () => {
   type TestContext = { count: number; name: string };

@@ -1,8 +1,8 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { withDrizzleSQLite } from "../adapters/drizzle/sqlite.js";
-import { ActorAlreadyExistsError } from "../errors.js";
-import { machine } from "../machine.js";
+import { withDrizzleSQLite } from "@/adapters/drizzle/sqlite.js";
+import { ActorAlreadyExistsError } from "@/errors.js";
+import { machine } from "@/machine.js";
 
 // Define a test table using SQLite types
 const subscriptionsTable = sqliteTable("subscriptions", {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { machine } from "../machine.js";
+import { machine } from "@/machine.js";
 
 describe("machine()", () => {
   it("creates a machine definition with valid config", () => {

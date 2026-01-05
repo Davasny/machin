@@ -1,1 +1,1 @@
-export type { Adapter, Snapshot } from "../types.js";
+export type { Adapter, Snapshot } from "@/types.js";
