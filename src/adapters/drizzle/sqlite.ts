@@ -5,6 +5,7 @@ import {
   type ValidateContext,
   DrizzleAdapter,
   BoundMachineImpl,
+  SYSTEM_FIELDS,
 } from "./core.js";
 
 // ============================================================
@@ -17,7 +18,7 @@ import {
  *
  * @param machineDefinition - The machine definition created by machine()
  * @param config - Drizzle configuration with db instance and table
- * @returns A BoundMachine with createActor, getActor, and getOrCreateActor methods
+ * @returns A BoundMachine with createActor and getActor methods
  *
  * @example
  * ```ts
@@ -37,7 +38,7 @@ import {
  *   table: subscriptionsTable,
  * });
  *
- * const actor = await boundMachine.createActor("sub_123");
+ * const actor = await boundMachine.createActor("sub_123", { stripeCustomerId: null });
  * ```
  */
 // biome-ignore lint/suspicious/noExplicitAny: SQLiteTableWithColumns requires generic parameter
@@ -54,8 +55,11 @@ export function withDrizzle<
       ? unknown
       : { __error: "Context type does not match table columns" }),
 ): BoundMachine<TContext, TStates, TEvents, TStateNodes> {
-  // Extract context keys from the machine's initial context
-  const contextKeys = Object.keys(machineDefinition.config.context as object);
+  // Extract context keys from table schema (excluding system fields)
+  const tableKeys = Object.keys(config.table);
+  const contextKeys = tableKeys.filter(
+    (k) => !SYSTEM_FIELDS.includes(k as (typeof SYSTEM_FIELDS)[number]),
+  );
 
   const adapter = new DrizzleAdapter<TContext, TStates, TTable>(
     config as DrizzleAdapterConfig<TTable>,

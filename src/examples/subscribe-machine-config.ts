@@ -4,7 +4,6 @@ type SubContext = { stripeCustomerId: string | null };
 
 export const subscribeMachineConfig = machine<SubContext>().define({
   initial: "inactive",
-  context: { stripeCustomerId: null },
   states: {
     inactive: {
       on: {

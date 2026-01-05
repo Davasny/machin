@@ -157,7 +157,6 @@ describe("withRedis", () => {
 
   const subscriptionMachine = machine<SubscriptionContext>().define({
     initial: "inactive",
-    context: { plan: null },
     states: {
       inactive: { on: { activate: { target: "activating" } } },
       activating: {
@@ -188,7 +187,7 @@ describe("withRedis", () => {
         client: mockClient,
       });
 
-      const actor = await boundMachine.createActor("sub_123");
+      const actor = await boundMachine.createActor("sub_123", { plan: null });
 
       expect(actor.id).toBe("sub_123");
       expect(actor.state).toBe("inactive");
@@ -201,11 +200,11 @@ describe("withRedis", () => {
         client: mockClient,
       });
 
-      await boundMachine.createActor("sub_123");
+      await boundMachine.createActor("sub_123", { plan: null });
 
-      await expect(boundMachine.createActor("sub_123")).rejects.toThrow(
-        ActorAlreadyExistsError,
-      );
+      await expect(
+        boundMachine.createActor("sub_123", { plan: null }),
+      ).rejects.toThrow(ActorAlreadyExistsError);
     });
   });
 
@@ -225,43 +224,12 @@ describe("withRedis", () => {
         client: mockClient,
       });
 
-      await boundMachine.createActor("sub_123");
+      await boundMachine.createActor("sub_123", { plan: null });
       const actor = await boundMachine.getActor("sub_123");
 
       expect(actor).not.toBeNull();
       expect(actor?.id).toBe("sub_123");
       expect(actor?.state).toBe("inactive");
-    });
-  });
-
-  describe("getOrCreateActor()", () => {
-    it("creates actor if it does not exist", async () => {
-      const boundMachine = withRedis(subscriptionMachine, {
-        client: mockClient,
-      });
-
-      const actor = await boundMachine.getOrCreateActor("sub_123");
-
-      expect(actor.id).toBe("sub_123");
-      expect(actor.state).toBe("inactive");
-      expect(store.has("sub_123")).toBe(true);
-    });
-
-    it("returns existing actor if it exists", async () => {
-      const boundMachine = withRedis(subscriptionMachine, {
-        client: mockClient,
-      });
-
-      // Create and transition to active
-      const created = await boundMachine.createActor("sub_123");
-      await created.send("activate", { plan: "pro" });
-
-      // getOrCreateActor should return existing
-      const actor = await boundMachine.getOrCreateActor("sub_123");
-
-      expect(actor.id).toBe("sub_123");
-      expect(actor.state).toBe("active");
-      expect(actor.context.plan).toBe("pro");
     });
   });
 
@@ -271,7 +239,7 @@ describe("withRedis", () => {
         client: mockClient,
       });
 
-      const actor = await boundMachine.createActor("sub_123");
+      const actor = await boundMachine.createActor("sub_123", { plan: null });
       const activatedActor = await actor.send("activate", { plan: "pro" });
 
       expect(activatedActor.state).toBe("active");
@@ -290,7 +258,7 @@ describe("withRedis", () => {
         client: mockClient,
       });
 
-      const actor = await boundMachine.createActor("sub_123");
+      const actor = await boundMachine.createActor("sub_123", { plan: null });
       await actor.send("activate", { plan: "enterprise" });
 
       // Reload actor from Redis

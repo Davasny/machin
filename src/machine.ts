@@ -16,12 +16,14 @@ import type {
  *
  * const myMachine = machine<MyContext>().define({
  *   initial: "idle",
- *   context: { count: 0 },
  *   states: {
  *     idle: { on: { start: { target: "running" } } },
  *     running: { on: { stop: { target: "idle" } } },
  *   },
  * });
+ *
+ * // Context is provided at actor creation time:
+ * const actor = await boundMachine.createActor("my-id", { count: 0 });
  * ```
  */
 export function machine<TContext>(): {
@@ -40,7 +42,6 @@ export function machine<TContext>(): {
         >
       : {
           initial: keyof TStateNodes & string;
-          context: NoInfer<TContext>;
           states: TStateNodes;
         },
   ): MachineDefinition<
@@ -55,7 +56,6 @@ export function machine<TContext>(): {
       return {
         config: config as {
           initial: string;
-          context: TContext;
           states: Record<string, InputStateNode<TContext>>;
         },
         _types: {} as {

@@ -18,8 +18,10 @@ const subscriberId = uuidv7();
 console.log("\n🚀 Starting redis Subscription State Machine Example\n");
 console.log("━".repeat(60));
 
-console.log("\n📦 Initializing actor...");
-const actor = await subscriptionMachine.getOrCreateActor(subscriberId);
+console.log("\n📦 Creating actor...");
+const actor = await subscriptionMachine.createActor(subscriberId, {
+  stripeCustomerId: null,
+});
 
 console.log(`✅ Actor spawned successfully`);
 console.log(`   └─ Current state: "${actor.state}"`);

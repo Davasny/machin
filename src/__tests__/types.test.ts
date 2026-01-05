@@ -6,7 +6,6 @@ describe("Type Inference", () => {
   it("infers states from config keys", () => {
     const m = machine<Record<string, never>>().define({
       initial: "idle",
-      context: {},
       states: {
         idle: { on: { start: { target: "running" } } },
         running: { on: { stop: { target: "idle" } } },
@@ -19,7 +18,6 @@ describe("Type Inference", () => {
   it("infers events from on keys", () => {
     const m = machine<Record<string, never>>().define({
       initial: "idle",
-      context: {},
       states: {
         idle: { on: { start: { target: "running" } } },
         running: { on: { stop: { target: "idle" } } },
@@ -32,7 +30,6 @@ describe("Type Inference", () => {
   it("infers multiple events from multiple states", () => {
     const m = machine<Record<string, never>>().define({
       initial: "idle",
-      context: {},
       states: {
         idle: {
           on: {
@@ -58,7 +55,6 @@ describe("Type Inference", () => {
 
     const m = machine<MyContext>().define({
       initial: "idle",
-      context: { count: 0, name: "test" },
       states: {
         idle: {},
       },
@@ -71,7 +67,6 @@ describe("Type Inference", () => {
     // This should compile fine
     machine<Record<string, never>>().define({
       initial: "idle",
-      context: {},
       states: {
         idle: {},
         running: {},
@@ -81,7 +76,6 @@ describe("Type Inference", () => {
     machine<Record<string, never>>().define({
       // @ts-expect-error - "invalid" is not a valid state
       initial: "invalid",
-      context: {},
       states: {
         idle: {},
         running: {},
@@ -97,7 +91,6 @@ describe("Type Inference", () => {
     // This should compile fine
     machine<Record<string, never>>().define({
       initial: "idle",
-      context: {},
       states: {
         idle: { on: { start: { target: "running" } } },
         running: {},
@@ -107,7 +100,6 @@ describe("Type Inference", () => {
     // This SHOULD error but doesn't currently - target validation not implemented
     machine<Record<string, never>>().define({
       initial: "idle",
-      context: {},
       states: {
         idle: { on: { start: { target: "nonexistent" } } },
         running: {},
@@ -121,7 +113,6 @@ describe("Type Inference", () => {
     // This should compile fine
     machine<NameContext>().define({
       initial: "idle",
-      context: { name: "" },
       states: {
         idle: { on: { activate: { target: "activating" } } },
         activating: {
@@ -137,7 +128,6 @@ describe("Type Inference", () => {
 
     machine<NameContext>().define({
       initial: "idle",
-      context: { name: "" },
       states: {
         idle: { on: { activate: { target: "activating" } } },
         // @ts-expect-error - entry without onSuccess should error
@@ -159,7 +149,6 @@ describe("Type Inference", () => {
     // This should compile fine - onError is optional
     const m = machine<NameContext>().define({
       initial: "idle",
-      context: { name: "" },
       states: {
         idle: { on: { activate: { target: "activating" } } },
         activating: {
@@ -186,7 +175,6 @@ describe("Type Inference", () => {
 
     const m = machine<MyContext>().define({
       initial: "idle",
-      context: { name: "", count: 0 },
       states: {
         idle: { on: { start: { target: "starting" } } },
         starting: {
@@ -216,7 +204,6 @@ describe("Type Inference", () => {
   it("infers undefined payload for events leading to states without entry", () => {
     const m = machine<Record<string, never>>().define({
       initial: "idle",
-      context: {},
       states: {
         idle: { on: { start: { target: "running" } } },
         running: { on: { stop: { target: "idle" } } }, // No entry

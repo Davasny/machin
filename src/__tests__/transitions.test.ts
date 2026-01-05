@@ -27,7 +27,6 @@ describe("Transition Flows", () => {
 
     const trafficLightMachine = machine<TrafficLightContext>().define({
       initial: "red",
-      context: { cycleCount: 0 },
       states: {
         red: { on: { next: { target: "green" } } },
         green: { on: { next: { target: "yellow" } } },
@@ -80,12 +79,6 @@ describe("Transition Flows", () => {
 
     const orderMachine = machine<OrderContext>().define({
       initial: "pending",
-      context: {
-        orderId: "",
-        totalAmount: 0,
-        paymentId: null,
-        error: null,
-      },
       states: {
         pending: { on: { submit: { target: "processing" } } },
         processing: {
@@ -170,7 +163,6 @@ describe("Transition Flows", () => {
 
       const failingOrderMachine = machine<AttemptsContext>().define({
         initial: "pending",
-        context: { attempts: 0 },
         states: {
           pending: { on: { process: { target: "processing" } } },
           processing: {
@@ -234,12 +226,6 @@ describe("Transition Flows", () => {
 
     const documentWorkflow = machine<DocContext>().define({
       initial: "draft",
-      context: {
-        title: "",
-        content: "",
-        reviewedBy: null,
-        approvedBy: null,
-      },
       states: {
         draft: { on: { submit_for_review: { target: "submitting" } } },
         submitting: {
@@ -374,7 +360,6 @@ describe("Transition Flows", () => {
   describe("Unhandled events", () => {
     const simpleMachine = machine<Record<string, never>>().define({
       initial: "a",
-      context: {},
       states: {
         a: { on: { to_b: { target: "b" } } },
         b: { on: { to_a: { target: "a" } } },

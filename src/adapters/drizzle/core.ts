@@ -16,6 +16,7 @@ import type {
 /**
  * System fields that are required in the table but not part of context
  */
+export const SYSTEM_FIELDS = ["id", "state", "createdAt", "updatedAt"] as const;
 type SystemFields = "id" | "state" | "createdAt" | "updatedAt";
 
 /**
@@ -214,6 +215,7 @@ export class BoundMachineImpl<
 
   async createActor(
     id: string,
+    context: TContext,
   ): Promise<Actor<TContext, TStates, TEvents, TStateNodes>> {
     // Check if actor already exists
     const existing = await this.adapter.load(id);
@@ -224,7 +226,7 @@ export class BoundMachineImpl<
     const snapshot = await this.adapter.create(
       id,
       this.machineDefinition.config.initial,
-      this.machineDefinition.config.context,
+      context,
     );
 
     return createActorFromSnapshot(
@@ -241,31 +243,6 @@ export class BoundMachineImpl<
     if (!snapshot) {
       return null;
     }
-
-    return createActorFromSnapshot(
-      snapshot,
-      this.machineDefinition,
-      this.adapter,
-    );
-  }
-
-  async getOrCreateActor(
-    id: string,
-  ): Promise<Actor<TContext, TStates, TEvents, TStateNodes>> {
-    const existing = await this.adapter.load(id);
-    if (existing) {
-      return createActorFromSnapshot(
-        existing,
-        this.machineDefinition,
-        this.adapter,
-      );
-    }
-
-    const snapshot = await this.adapter.create(
-      id,
-      this.machineDefinition.config.initial,
-      this.machineDefinition.config.context,
-    );
 
     return createActorFromSnapshot(
       snapshot,
@@ -302,8 +279,11 @@ export function createWithDrizzle<TTableConstraint extends DrizzleTable>() {
         ? unknown
         : { __error: "Context type does not match table columns" }),
   ): BoundMachine<TContext, TStates, TEvents, TStateNodes> {
-    // Extract context keys from the machine's initial context
-    const contextKeys = Object.keys(machineDefinition.config.context as object);
+    // Extract context keys from table schema (excluding system fields)
+    const tableKeys = Object.keys(config.table);
+    const contextKeys = tableKeys.filter(
+      (k) => !SYSTEM_FIELDS.includes(k as (typeof SYSTEM_FIELDS)[number]),
+    );
 
     const adapter = new DrizzleAdapter<TContext, TStates, TTable>(
       config as DrizzleAdapterConfig<TTable>,

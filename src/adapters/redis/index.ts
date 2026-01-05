@@ -140,6 +140,7 @@ class BoundMachineImpl<
 
   async createActor(
     id: string,
+    context: TContext,
   ): Promise<Actor<TContext, TStates, TEvents, TStateNodes>> {
     // Check if actor already exists
     const existing = await this.adapter.load(id);
@@ -150,7 +151,7 @@ class BoundMachineImpl<
     const snapshot = await this.adapter.create(
       id,
       this.machineDefinition.config.initial,
-      this.machineDefinition.config.context,
+      context,
     );
 
     return createActorFromSnapshot(
@@ -174,31 +175,6 @@ class BoundMachineImpl<
       this.adapter,
     );
   }
-
-  async getOrCreateActor(
-    id: string,
-  ): Promise<Actor<TContext, TStates, TEvents, TStateNodes>> {
-    const existing = await this.adapter.load(id);
-    if (existing) {
-      return createActorFromSnapshot(
-        existing,
-        this.machineDefinition,
-        this.adapter,
-      );
-    }
-
-    const snapshot = await this.adapter.create(
-      id,
-      this.machineDefinition.config.initial,
-      this.machineDefinition.config.context,
-    );
-
-    return createActorFromSnapshot(
-      snapshot,
-      this.machineDefinition,
-      this.adapter,
-    );
-  }
 }
 
 // ============================================================
@@ -211,7 +187,7 @@ class BoundMachineImpl<
  *
  * @param machineDefinition - The machine definition created by machine()
  * @param config - Redis configuration with client instance
- * @returns A BoundMachine with createActor, getActor, and getOrCreateActor methods
+ * @returns A BoundMachine with createActor and getActor methods
  *
  * @example
  * ```ts
@@ -224,7 +200,7 @@ class BoundMachineImpl<
  *   client: redis,
  * });
  *
- * const actor = await boundMachine.createActor('sub_123');
+ * const actor = await boundMachine.createActor('sub_123', { stripeCustomerId: null });
  * // Stored at Redis key "sub_123" as JSON
  * ```
  */

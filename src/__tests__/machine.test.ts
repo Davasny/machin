@@ -7,7 +7,6 @@ describe("machine()", () => {
 
     const m = machine<CountContext>().define({
       initial: "idle",
-      context: { count: 0 },
       states: {
         idle: { on: { start: { target: "running" } } },
         running: { on: { stop: { target: "idle" } } },
@@ -15,7 +14,6 @@ describe("machine()", () => {
     });
 
     expect(m.config.initial).toBe("idle");
-    expect(m.config.context).toEqual({ count: 0 });
     expect(m.config.states).toHaveProperty("idle");
     expect(m.config.states).toHaveProperty("running");
   });
@@ -25,7 +23,6 @@ describe("machine()", () => {
 
     const m = machine<NameContext>().define({
       initial: "inactive",
-      context: { name: "" },
       states: {
         inactive: { on: { activate: { target: "activating" } } },
         activating: {
@@ -52,7 +49,6 @@ describe("machine()", () => {
 
     const m = machine<DataContext>().define({
       initial: "idle",
-      context: { data: null },
       states: {
         idle: { on: { fetch: { target: "loading" } } },
         loading: {
@@ -72,34 +68,9 @@ describe("machine()", () => {
     expect(m.config.states.loading?.entry).toBeDefined();
   });
 
-  it("preserves initial context value", () => {
-    type NestedContext = {
-      count: number;
-      name: string;
-      nested: { value: boolean };
-    };
-
-    const initialContext: NestedContext = {
-      count: 42,
-      name: "test",
-      nested: { value: true },
-    };
-    const m = machine<NestedContext>().define({
-      initial: "idle",
-      context: initialContext,
-      states: {
-        idle: {},
-      },
-    });
-
-    expect(m.config.context).toEqual(initialContext);
-    expect(m.config.context).toBe(initialContext); // Same reference
-  });
-
   it("allows states without any transitions", () => {
     const m = machine<Record<string, never>>().define({
       initial: "terminal",
-      context: {},
       states: {
         terminal: {}, // No `on`, no `entry`
       },
@@ -111,7 +82,6 @@ describe("machine()", () => {
   it("allows multiple events in a single state", () => {
     const m = machine<Record<string, never>>().define({
       initial: "idle",
-      context: {},
       states: {
         idle: {
           on: {
@@ -133,7 +103,6 @@ describe("machine()", () => {
 
     const m = machine<CountContext>().define({
       initial: "counting",
-      context: { count: 0 },
       states: {
         counting: {
           on: { increment: { target: "counting" } }, // Self-transition

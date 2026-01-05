@@ -77,10 +77,9 @@ export type ValidatedMachineConfig<
   TStates,
   TInitial extends string,
 > = HasInvalidEntry<TContext, TStates> extends never
-  ? { initial: TInitial; context: TContext; states: TStates }
+  ? { initial: TInitial; states: TStates }
   : {
       initial: TInitial;
-      context: TContext;
       states: TStates;
       __error: `Entry in state '${HasInvalidEntry<TContext, TStates> & string}' must return exactly the context type`;
     };
@@ -154,16 +153,14 @@ export interface MachineConfig<
   TStateNodes extends Record<TStates, StateNode<TContext, TStates>>,
 > {
   initial: TStates;
-  context: TContext;
   states: TStateNodes;
 }
 
 /**
  * Input config type for looser inference
  */
-export interface InputMachineConfig<TContext, TStateNodes> {
+export interface InputMachineConfig<TStateNodes> {
   initial: string;
-  context: TContext;
   states: TStateNodes;
 }
 
@@ -269,7 +266,6 @@ export interface MachineDefinition<
 > {
   config: {
     initial: TStates;
-    context: TContext;
     states: TStateNodes;
   };
   _types: {
@@ -343,11 +339,9 @@ export interface BoundMachine<
 > {
   createActor(
     id: string,
+    context: TContext,
   ): Promise<Actor<TContext, TStates, TEvents, TStateNodes>>;
   getActor(
     id: string,
   ): Promise<Actor<TContext, TStates, TEvents, TStateNodes> | null>;
-  getOrCreateActor(
-    id: string,
-  ): Promise<Actor<TContext, TStates, TEvents, TStateNodes>>;
 }

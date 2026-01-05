@@ -23,7 +23,6 @@ type TestContext = {
 // Test machine
 const testMachine = machine<TestContext>().define({
   initial: "inactive",
-  context: { count: 0, name: null },
   states: {
     inactive: { on: { activate: { target: "activating" } } },
     activating: {
@@ -117,7 +116,10 @@ describe("withDrizzle() - SQLite", () => {
         table: subscriptionsTable,
       });
 
-      const actor = await boundMachine.createActor("sub_123");
+      const actor = await boundMachine.createActor("sub_123", {
+        count: 0,
+        name: null,
+      });
 
       expect(actor.id).toBe("sub_123");
       expect(actor.state).toBe("inactive");
@@ -130,7 +132,7 @@ describe("withDrizzle() - SQLite", () => {
         table: subscriptionsTable,
       });
 
-      await boundMachine.createActor("sub_123");
+      await boundMachine.createActor("sub_123", { count: 0, name: null });
 
       expect(mockDb.insert).toHaveBeenCalled();
       const inserted = mockDb._getInserted();
@@ -162,12 +164,12 @@ describe("withDrizzle() - SQLite", () => {
         table: subscriptionsTable,
       });
 
-      await expect(boundMachine.createActor("sub_123")).rejects.toThrow(
-        ActorAlreadyExistsError,
-      );
-      await expect(boundMachine.createActor("sub_123")).rejects.toThrow(
-        'Actor with id "sub_123" already exists',
-      );
+      await expect(
+        boundMachine.createActor("sub_123", { count: 0, name: null }),
+      ).rejects.toThrow(ActorAlreadyExistsError);
+      await expect(
+        boundMachine.createActor("sub_123", { count: 0, name: null }),
+      ).rejects.toThrow('Actor with id "sub_123" already exists');
     });
   });
 
@@ -213,52 +215,6 @@ describe("withDrizzle() - SQLite", () => {
     });
   });
 
-  describe("getOrCreateActor()", () => {
-    it("creates actor when it does not exist", async () => {
-      const boundMachine = withDrizzle(testMachine, {
-        db: mockDb,
-        table: subscriptionsTable,
-      });
-
-      (mockDb as unknown as { _setQueryId: (id: string) => void })._setQueryId(
-        "new_actor",
-      );
-      const actor = await boundMachine.getOrCreateActor("new_actor");
-
-      expect(actor.id).toBe("new_actor");
-      expect(actor.state).toBe("inactive");
-      expect(mockDb.insert).toHaveBeenCalled();
-    });
-
-    it("returns existing actor when it exists", async () => {
-      mockDb._storage.set("existing_123", {
-        id: "existing_123",
-        state: "active",
-        count: 10,
-        name: "ExistingActor",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      (mockDb as unknown as { _setQueryId: (id: string) => void })._setQueryId(
-        "existing_123",
-      );
-
-      const boundMachine = withDrizzle(testMachine, {
-        db: mockDb,
-        table: subscriptionsTable,
-      });
-
-      mockDb.insert.mockClear();
-
-      const actor = await boundMachine.getOrCreateActor("existing_123");
-
-      expect(actor.id).toBe("existing_123");
-      expect(actor.state).toBe("active");
-      expect(actor.context).toEqual({ count: 10, name: "ExistingActor" });
-      expect(mockDb.insert).not.toHaveBeenCalled();
-    });
-  });
-
   describe("Actor persistence", () => {
     it("persists state changes after send()", async () => {
       const updateCalls: Array<{ set: Record<string, unknown> }> = [];
@@ -280,7 +236,10 @@ describe("withDrizzle() - SQLite", () => {
         table: subscriptionsTable,
       });
 
-      const actor = await boundMachine.createActor("sub_persist");
+      const actor = await boundMachine.createActor("sub_persist", {
+        count: 0,
+        name: null,
+      });
       const newActor = await actor.send("activate", { name: "NewName" });
 
       expect(newActor.state).toBe("active");

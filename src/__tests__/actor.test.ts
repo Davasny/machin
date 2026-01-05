@@ -8,7 +8,6 @@ describe("Actor", () => {
   type SimpleContext = { count: number };
   const simpleMachine = machine<SimpleContext>().define({
     initial: "idle",
-    context: { count: 0 },
     states: {
       idle: { on: { start: { target: "running" } } },
       running: { on: { stop: { target: "idle" } } },
@@ -19,7 +18,6 @@ describe("Actor", () => {
   type EntryContext = { name: string; count: number };
   const entryMachine = machine<EntryContext>().define({
     initial: "inactive",
-    context: { name: "", count: 0 },
     states: {
       inactive: { on: { activate: { target: "activating" } } },
       activating: {
@@ -43,7 +41,6 @@ describe("Actor", () => {
   type AsyncContext = { data: string | null };
   const asyncMachine = machine<AsyncContext>().define({
     initial: "idle",
-    context: { data: null },
     states: {
       idle: { on: { fetch: { target: "loading" } } },
       loading: {
@@ -68,7 +65,6 @@ describe("Actor", () => {
   type ErrorContext = { error: string | null };
   const errorMachine = machine<ErrorContext>().define({
     initial: "idle",
-    context: { error: null },
     states: {
       idle: { on: { process: { target: "processing" } } },
       processing: {
@@ -392,7 +388,6 @@ describe("Actor", () => {
 
       const sameContextMachine = machine<ValueContext>().define({
         initial: "a",
-        context: { value: 42 },
         states: {
           a: { on: { go: { target: "b" } } },
           b: {
@@ -426,7 +421,6 @@ describe("Actor", () => {
     it("re-throws error when no onError is defined", async () => {
       const noOnErrorMachine = machine<Record<string, never>>().define({
         initial: "idle",
-        context: {},
         states: {
           idle: { on: { fail: { target: "failing" } } },
           failing: {
@@ -468,7 +462,6 @@ describe("Actor", () => {
 
       const selfTransitionMachine = machine<CountContext>().define({
         initial: "counting",
-        context: { count: 0 },
         states: {
           counting: {
             on: { increment: { target: "incrementing" } },
