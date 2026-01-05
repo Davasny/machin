@@ -1,0 +1,46 @@
+{
+  "name": "transito",
+  "version": "0.1.0",
+  "description": "TypeScript state machine library with first-class persistence support",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./drizzle": {
+      "import": "./dist/adapters/drizzle.js",
+      "types": "./dist/adapters/drizzle.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:types": "vitest typecheck",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "state-machine",
+    "typescript",
+    "persistence",
+    "drizzle"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@biomejs/biome": "2.3.11",
+    "@types/node": "25.0.3",
+    "@types/pg": "8.16.0",
+    "@vitest/coverage-v8": "4.0.16",
+    "drizzle-kit": "0.31.8",
+    "drizzle-orm": "0.45.1",
+    "pg": "8.16.3",
+    "typescript": "5.9.3",
+    "vitest": "4.0.16"
+  },
+  "packageManager": "pnpm@10.18.2+sha512.9fb969fa749b3ade6035e0f109f0b8a60b5d08a1a87fdf72e337da90dcc93336e2280ca4e44f2358a649b83c17959e9993e777c2080879f3801e6f0d999ad3dd"
+}
