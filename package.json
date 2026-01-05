@@ -21,6 +21,10 @@
     "./drizzle/sqlite": {
       "import": "./dist/adapters/drizzle/sqlite.js",
       "types": "./dist/adapters/drizzle/sqlite.d.ts"
+    },
+    "./redis": {
+      "import": "./dist/adapters/redis/index.js",
+      "types": "./dist/adapters/redis/index.d.ts"
     }
   },
   "scripts": {
@@ -35,7 +39,8 @@
     "state-machine",
     "typescript",
     "persistence",
-    "drizzle"
+    "drizzle",
+    "redis"
   ],
   "author": "",
   "license": "MIT",
@@ -50,9 +55,18 @@
     "drizzle-kit": "0.31.8",
     "drizzle-orm": "0.45.1",
     "pg": "8.16.3",
+    "redis": "5.10.0",
     "typescript": "5.9.3",
     "uuid": "13.0.0",
     "vitest": "4.0.16"
+  },
+  "peerDependencies": {
+    "redis": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "redis": {
+      "optional": true
+    }
   },
   "packageManager": "pnpm@10.18.2+sha512.9fb969fa749b3ade6035e0f109f0b8a60b5d08a1a87fdf72e337da90dcc93336e2280ca4e44f2358a649b83c17959e9993e777c2080879f3801e6f0d999ad3dd",
   "pnpm": {
