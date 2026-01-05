@@ -1,17 +1,17 @@
-import { integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { withDrizzle } from "../adapters/drizzle/pg.js";
+import { withDrizzle } from "../adapters/drizzle/sqlite.js";
 import { ActorAlreadyExistsError } from "../errors.js";
 import { machine } from "../machine.js";
 
-// Define a test table
-const subscriptionsTable = pgTable("subscriptions", {
-  id: uuid().primaryKey(),
-  state: text().notNull(),
-  createdAt: timestamp().notNull(),
-  updatedAt: timestamp().notNull(),
-  count: integer().notNull(),
-  name: text(),
+// Define a test table using SQLite types
+const subscriptionsTable = sqliteTable("subscriptions", {
+  id: text("id").primaryKey(),
+  state: text("state").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  count: integer("count").notNull(),
+  name: text("name"),
 });
 
 // Type for the test context
@@ -43,7 +43,7 @@ const testMachine = machine<TestContext>().define({
   },
 });
 
-// Mock database helper
+// Mock database helper (same pattern as pg test)
 function createMockDb() {
   const storage: Map<string, Record<string, unknown>> = new Map();
   let insertedData: Record<string, unknown> | null = null;
@@ -54,9 +54,6 @@ function createMockDb() {
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockImplementation(() => ({
           limit: vi.fn().mockImplementation(() => {
-            // Extract ID from the last call
-            const whereCall = mockDb.select().from().where;
-            // For simplicity, we'll track the ID differently
             return Promise.resolve([]);
           }),
         })),
@@ -77,21 +74,16 @@ function createMockDb() {
         }),
       })),
     }),
-    // Helper to get inserted/updated data for assertions
     _getInserted: () => insertedData,
     _getUpdated: () => updatedData,
     _storage: storage,
   };
 
-  // More sophisticated mock that tracks IDs
   let lastQueriedId: string | null = null;
 
   mockDb.select = vi.fn().mockReturnValue({
     from: vi.fn().mockReturnValue({
-      where: vi.fn().mockImplementation((condition: unknown) => {
-        // Try to extract ID from the condition
-        // In real implementation this would parse the eq() call
-        // For testing, we'll use a simpler approach
+      where: vi.fn().mockImplementation(() => {
         return {
           limit: vi.fn().mockImplementation(() => {
             if (lastQueriedId && storage.has(lastQueriedId)) {
@@ -104,7 +96,6 @@ function createMockDb() {
     }),
   });
 
-  // Expose a way to set the query ID for testing
   (mockDb as Record<string, unknown>)["_setQueryId"] = (id: string) => {
     lastQueriedId = id;
   };
@@ -112,7 +103,7 @@ function createMockDb() {
   return mockDb;
 }
 
-describe("withDrizzle()", () => {
+describe("withDrizzle() - SQLite", () => {
   let mockDb: ReturnType<typeof createMockDb>;
 
   beforeEach(() => {
@@ -154,7 +145,6 @@ describe("withDrizzle()", () => {
     });
 
     it("throws ActorAlreadyExistsError if actor exists", async () => {
-      // Pre-populate storage
       mockDb._storage.set("sub_123", {
         id: "sub_123",
         state: "inactive",
@@ -197,7 +187,6 @@ describe("withDrizzle()", () => {
     });
 
     it("returns actor when it exists", async () => {
-      // Pre-populate storage
       mockDb._storage.set("sub_123", {
         id: "sub_123",
         state: "active",
@@ -242,7 +231,6 @@ describe("withDrizzle()", () => {
     });
 
     it("returns existing actor when it exists", async () => {
-      // Pre-populate storage
       mockDb._storage.set("existing_123", {
         id: "existing_123",
         state: "active",
@@ -260,7 +248,6 @@ describe("withDrizzle()", () => {
         table: subscriptionsTable,
       });
 
-      // Clear insert calls before testing
       mockDb.insert.mockClear();
 
       const actor = await boundMachine.getOrCreateActor("existing_123");
@@ -268,14 +255,12 @@ describe("withDrizzle()", () => {
       expect(actor.id).toBe("existing_123");
       expect(actor.state).toBe("active");
       expect(actor.context).toEqual({ count: 10, name: "ExistingActor" });
-      // Should NOT have called insert since actor exists
       expect(mockDb.insert).not.toHaveBeenCalled();
     });
   });
 
   describe("Actor persistence", () => {
     it("persists state changes after send()", async () => {
-      // Create a fresh mock with proper tracking
       const updateCalls: Array<{ set: Record<string, unknown> }> = [];
 
       const trackingMockDb = {
@@ -310,9 +295,8 @@ describe("withDrizzle()", () => {
   });
 });
 
-describe("Type validation", () => {
-  it("accepts matching context and table types", () => {
-    // This should compile without errors
+describe("SQLite Type validation", () => {
+  it("accepts matching context and SQLite table types", () => {
     const _boundMachine = withDrizzle(testMachine, {
       db: createMockDb(),
       table: subscriptionsTable,
@@ -320,7 +304,4 @@ describe("Type validation", () => {
 
     expect(_boundMachine).toBeDefined();
   });
-
-  // Type-level test: mismatched context should produce error
-  // This is tested in types.test.ts
 });

@@ -1,14 +1,13 @@
 import { eq } from "drizzle-orm";
-import type { PgTable, TableConfig } from "drizzle-orm/pg-core";
-import { createActorFromSnapshot } from "../actor.js";
-import { ActorAlreadyExistsError } from "../errors.js";
+import { createActorFromSnapshot } from "../../actor.js";
+import { ActorAlreadyExistsError } from "../../errors.js";
 import type {
   Actor,
   Adapter,
   BoundMachine,
   MachineDefinition,
   Snapshot,
-} from "../types.js";
+} from "../../types.js";
 
 // ============================================================
 // Type Utilities for Drizzle
@@ -20,19 +19,28 @@ import type {
 type SystemFields = "id" | "state" | "createdAt" | "updatedAt";
 
 /**
+ * Minimal table interface that works across all Drizzle dialects
+ */
+export interface DrizzleTable {
+  $inferSelect: Record<string, unknown>;
+}
+
+/**
  * Extract the select type from a Drizzle table
  */
-type TableSelect<TTable> = TTable extends { $inferSelect: infer R } ? R : never;
+export type TableSelect<TTable> = TTable extends { $inferSelect: infer R }
+  ? R
+  : never;
 
 /**
  * Extract context type from Drizzle table (excluding system fields)
  */
-type ContextFromTable<TTable> = Omit<TableSelect<TTable>, SystemFields>;
+export type ContextFromTable<TTable> = Omit<TableSelect<TTable>, SystemFields>;
 
 /**
  * Validate that Context matches the table's context fields
  */
-type ValidateContext<TContext, TTable> =
+export type ValidateContext<TContext, TTable> =
   TContext extends ContextFromTable<TTable>
     ? ContextFromTable<TTable> extends TContext
       ? true
@@ -47,7 +55,7 @@ type ValidateContext<TContext, TTable> =
  * Minimal database interface needed by the adapter
  * This allows for easier mocking and testing
  */
-interface DrizzleDatabase {
+export interface DrizzleDatabase {
   select(): {
     from(table: unknown): {
       where(condition: unknown): {
@@ -72,7 +80,7 @@ interface DrizzleDatabase {
 /**
  * Configuration for Drizzle adapter
  */
-interface DrizzleAdapterConfig<TTable extends PgTable<TableConfig>> {
+export interface DrizzleAdapterConfig<TTable extends DrizzleTable> {
   db: DrizzleDatabase;
   table: TTable;
 }
@@ -80,8 +88,11 @@ interface DrizzleAdapterConfig<TTable extends PgTable<TableConfig>> {
 /**
  * Creates a Drizzle adapter that implements the Adapter interface
  */
-class DrizzleAdapter<TContext, TStates extends string, TTable extends PgTable<TableConfig>>
-  implements Adapter<TContext, TStates>
+export class DrizzleAdapter<
+  TContext,
+  TStates extends string,
+  TTable extends DrizzleTable,
+> implements Adapter<TContext, TStates>
 {
   private readonly db: DrizzleDatabase;
   private readonly table: TTable;
@@ -161,7 +172,10 @@ class DrizzleAdapter<TContext, TStates extends string, TTable extends PgTable<Ta
       ...contextRecord,
     };
 
-    await this.db.update(this.table).set(updateData).where(eq(idColumn, snapshot.id));
+    await this.db
+      .update(this.table)
+      .set(updateData)
+      .where(eq(idColumn, snapshot.id));
   }
 }
 
@@ -169,12 +183,12 @@ class DrizzleAdapter<TContext, TStates extends string, TTable extends PgTable<Ta
 // Bound Machine Implementation
 // ============================================================
 
-class BoundMachineImpl<
+export class BoundMachineImpl<
   TContext,
   TStates extends string,
   TEvents extends string,
   TStateNodes,
-  TTable extends PgTable<TableConfig>,
+  TTable extends DrizzleTable,
 > implements BoundMachine<TContext, TStates, TEvents, TStateNodes>
 {
   private readonly machineDefinition: MachineDefinition<
@@ -186,14 +200,21 @@ class BoundMachineImpl<
   private readonly adapter: DrizzleAdapter<TContext, TStates, TTable>;
 
   constructor(
-    machineDefinition: MachineDefinition<TContext, TStates, TEvents, TStateNodes>,
+    machineDefinition: MachineDefinition<
+      TContext,
+      TStates,
+      TEvents,
+      TStateNodes
+    >,
     adapter: DrizzleAdapter<TContext, TStates, TTable>,
   ) {
     this.machineDefinition = machineDefinition;
     this.adapter = adapter;
   }
 
-  async createActor(id: string): Promise<Actor<TContext, TStates, TEvents, TStateNodes>> {
+  async createActor(
+    id: string,
+  ): Promise<Actor<TContext, TStates, TEvents, TStateNodes>> {
     // Check if actor already exists
     const existing = await this.adapter.load(id);
     if (existing) {
@@ -206,7 +227,11 @@ class BoundMachineImpl<
       this.machineDefinition.config.context,
     );
 
-    return createActorFromSnapshot(snapshot, this.machineDefinition, this.adapter);
+    return createActorFromSnapshot(
+      snapshot,
+      this.machineDefinition,
+      this.adapter,
+    );
   }
 
   async getActor(
@@ -217,7 +242,11 @@ class BoundMachineImpl<
       return null;
     }
 
-    return createActorFromSnapshot(snapshot, this.machineDefinition, this.adapter);
+    return createActorFromSnapshot(
+      snapshot,
+      this.machineDefinition,
+      this.adapter,
+    );
   }
 
   async getOrCreateActor(
@@ -225,7 +254,11 @@ class BoundMachineImpl<
   ): Promise<Actor<TContext, TStates, TEvents, TStateNodes>> {
     const existing = await this.adapter.load(id);
     if (existing) {
-      return createActorFromSnapshot(existing, this.machineDefinition, this.adapter);
+      return createActorFromSnapshot(
+        existing,
+        this.machineDefinition,
+        this.adapter,
+      );
     }
 
     const snapshot = await this.adapter.create(
@@ -234,52 +267,49 @@ class BoundMachineImpl<
       this.machineDefinition.config.context,
     );
 
-    return createActorFromSnapshot(snapshot, this.machineDefinition, this.adapter);
+    return createActorFromSnapshot(
+      snapshot,
+      this.machineDefinition,
+      this.adapter,
+    );
   }
 }
 
 // ============================================================
-// Public API
+// Factory function for creating withDrizzle
 // ============================================================
 
 /**
- * Binds a machine definition to a Drizzle table, creating a BoundMachine
- * that can create, load, and persist actors.
- *
- * @param machineDefinition - The machine definition created by machine()
- * @param config - Drizzle configuration with db instance and table
- * @returns A BoundMachine with createActor, getActor, and getOrCreateActor methods
- *
- * @example
- * ```ts
- * const boundMachine = withDrizzle(subscriptionMachine, {
- *   db,
- *   table: subscriptions,
- * });
- *
- * const actor = await boundMachine.createActor("sub_123");
- * ```
+ * Creates a withDrizzle function for a specific table type
+ * Used by dialect-specific modules (pg.ts, sqlite.ts)
  */
-export function withDrizzle<
-  TContext,
-  TStates extends string,
-  TEvents extends string,
-  TStateNodes,
-  TTable extends PgTable<TableConfig>,
->(
-  machineDefinition: MachineDefinition<TContext, TStates, TEvents, TStateNodes>,
-  config: DrizzleAdapterConfig<TTable> &
-    (ValidateContext<TContext, TTable> extends true
-      ? unknown
-      : { __error: "Context type does not match table columns" }),
-): BoundMachine<TContext, TStates, TEvents, TStateNodes> {
-  // Extract context keys from the machine's initial context
-  const contextKeys = Object.keys(machineDefinition.config.context as object);
+export function createWithDrizzle<TTableConstraint extends DrizzleTable>() {
+  return function withDrizzle<
+    TContext,
+    TStates extends string,
+    TEvents extends string,
+    TStateNodes,
+    TTable extends TTableConstraint,
+  >(
+    machineDefinition: MachineDefinition<
+      TContext,
+      TStates,
+      TEvents,
+      TStateNodes
+    >,
+    config: DrizzleAdapterConfig<TTable> &
+      (ValidateContext<TContext, TTable> extends true
+        ? unknown
+        : { __error: "Context type does not match table columns" }),
+  ): BoundMachine<TContext, TStates, TEvents, TStateNodes> {
+    // Extract context keys from the machine's initial context
+    const contextKeys = Object.keys(machineDefinition.config.context as object);
 
-  const adapter = new DrizzleAdapter<TContext, TStates, TTable>(
-    config as DrizzleAdapterConfig<TTable>,
-    contextKeys,
-  );
+    const adapter = new DrizzleAdapter<TContext, TStates, TTable>(
+      config as DrizzleAdapterConfig<TTable>,
+      contextKeys,
+    );
 
-  return new BoundMachineImpl(machineDefinition, adapter);
+    return new BoundMachineImpl(machineDefinition, adapter);
+  };
 }

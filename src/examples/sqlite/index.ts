@@ -1,7 +1,8 @@
 import { v7 as uuidv7 } from "uuid";
-import { withDrizzle } from "../../adapters/drizzle/pg.js";
+import { withDrizzle } from "../../adapters/drizzle/sqlite.js";
 import { subscribeMachineConfig } from "../subscribe-machine-config.js";
-import { db } from "./db.js";
+import { closeDb, db } from "./db.js";
+
 import { subscriptionsTable } from "./schema.js";
 
 const subscriptionMachine = withDrizzle(subscribeMachineConfig, {
@@ -11,7 +12,7 @@ const subscriptionMachine = withDrizzle(subscribeMachineConfig, {
 
 const subscriberId = uuidv7();
 
-console.log("\n🚀 Starting PostgreSQL Subscription State Machine Example\n");
+console.log("\n🚀 Starting SQLite Subscription State Machine Example\n");
 console.log("━".repeat(60));
 
 console.log("\n📦 Initializing actor...");
@@ -35,7 +36,7 @@ console.log(`   └─ New state: "${activateResult.state}"`);
 console.log(`   └─ Context updated with customer ID\n`);
 
 console.log("━".repeat(60));
-console.log("\n🔌 Closing database connection...");
+console.log("\n🔌 Closing database...");
 
-await db.$client.end();
+closeDb();
 console.log("✅ Database connection closed\n");
