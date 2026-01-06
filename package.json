@@ -1,6 +1,6 @@
 {
   "name": "machin",
-  "version": "1.0.0-rc2",
+  "version": "1.0.0-rc3",
   "description": "TypeScript state machine library with first-class persistence support",
   "type": "module",
   "main": "./dist/index.js",
