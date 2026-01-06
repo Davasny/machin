@@ -30,7 +30,6 @@ jobs:
         with:
           node-version: 22
           cache: 'pnpm'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Validate version
         run: node .github/scripts/validate-version.cjs ${{ inputs.version }}
