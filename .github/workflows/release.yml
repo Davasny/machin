@@ -36,23 +36,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Validate version
-        run: |
-          NEW_VERSION="${{ inputs.version }}"
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          
-          # Check if new version is valid semver
-          if ! npx semver "$NEW_VERSION" > /dev/null 2>&1; then
-            echo "::error::Invalid semver: $NEW_VERSION"
-            exit 1
-          fi
-          
-          # Check if new version is greater than current
-          if ! npx semver "$NEW_VERSION" -gt "$CURRENT_VERSION" > /dev/null 2>&1; then
-            echo "::error::New version ($NEW_VERSION) must be greater than current version ($CURRENT_VERSION)"
-            exit 1
-          fi
-          
-          echo "Version bump: $CURRENT_VERSION -> $NEW_VERSION"
+        run: node .github/scripts/validate-version.cjs ${{ inputs.version }}
 
       - name: Type check
         run: pnpm lint
