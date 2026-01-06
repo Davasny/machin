@@ -23,8 +23,8 @@
       "types": "./dist/adapters/drizzle/sqlite.d.ts"
     },
     "./redis": {
-      "import": "./dist/adapters/redis/index.js",
-      "types": "./dist/adapters/redis/index.d.ts"
+      "import": "./dist/adapters/redis.js",
+      "types": "./dist/adapters/redis.d.ts"
     }
   },
   "files": [
