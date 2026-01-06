@@ -88,4 +88,4 @@ jobs:
           prerelease: ${{ steps.prerelease.outputs.is_prerelease == 'true' }}
 
       - name: Publish to npm
-        run: pnpm publish --no-git-check --tag ${{ steps.prerelease.outputs.npm_tag }}
+        run: npm publish --access public --tag ${{ steps.prerelease.outputs.npm_tag }}
