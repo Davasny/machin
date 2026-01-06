@@ -52,12 +52,24 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Get last stable tag
+        id: last_stable
+        run: |
+          LAST_STABLE=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+          if [ -z "$LAST_STABLE" ]; then
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "No stable tag found, generating changelog from beginning"
+          else
+            echo "tag=$LAST_STABLE" >> "$GITHUB_OUTPUT"
+            echo "Generating changelog from: $LAST_STABLE"
+          fi
+
       - name: Generate changelog
         uses: orhun/git-cliff-action@v4
         id: changelog
         with:
           config: cliff.toml
-          args: --latest --strip header
+          args: ${{ steps.last_stable.outputs.tag }}.. --strip header
         env:
           GITHUB_REPO: ${{ github.repository }}
 
