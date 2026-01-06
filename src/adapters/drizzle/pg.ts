@@ -23,7 +23,7 @@ import {
  * @example
  * ```ts
  * import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
- * import { withDrizzlePg } from "transito/drizzle/pg";
+ * import { withDrizzlePg } from "machin/drizzle/pg";
  *
  * const subscriptionsTable = pgTable("subscriptions", {
  *   id: uuid().primaryKey(),

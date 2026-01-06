@@ -10,7 +10,7 @@ import { v7 as uuidv7 } from "uuid";
  * - snake_case column names
  */
 export const subscriptionsTable = sqliteTable("subscriptions", {
-  // System fields (required by transito)
+  // System fields (required by machin)
   id: text("id")
     .primaryKey()
     .$defaultFn(() => uuidv7()),

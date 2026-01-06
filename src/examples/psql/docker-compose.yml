@@ -5,6 +5,6 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: "transito"
-      POSTGRES_USER: "transito"
-      POSTGRES_PASSWORD: "transito_password"
+      POSTGRES_DB: "machin"
+      POSTGRES_USER: "machin"
+      POSTGRES_PASSWORD: "machin_password"

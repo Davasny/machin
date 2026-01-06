@@ -23,7 +23,7 @@ import {
  * @example
  * ```ts
  * import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
- * import { withDrizzleSQLite } from "transito/drizzle/sqlite";
+ * import { withDrizzleSQLite } from "machin/drizzle/sqlite";
  *
  * const subscriptionsTable = sqliteTable("subscriptions", {
  *   id: text("id").primaryKey(),

@@ -192,7 +192,7 @@ class BoundMachineImpl<
  * @example
  * ```ts
  * import { createClient } from 'redis';
- * import { withRedis } from 'transito/redis';
+ * import { withRedis } from 'machin/redis';
  *
  * const redis = await createClient().connect();
  *
