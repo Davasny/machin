@@ -52,7 +52,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Davasny/machin.git"
+    "url": "git+https://github.com/Davasny/machin.git"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.11",
