@@ -119,6 +119,50 @@ Your table needs these columns:
 
 Plus any columns for your context fields.
 
+## Type inference utilities
+
+machin provides type inference utilities to extract types from your machine definitions. This is useful for typing database columns, API responses, or any other code that needs to work with machine states, events, or context.
+
+```typescript
+import { machine, InferStates, InferEvents, InferContext } from "machin";
+
+const myMachine = machine<{ count: number }>().define({
+  initial: "idle",
+  states: {
+    idle: { on: { start: { target: "running" } } },
+    running: { on: { stop: { target: "idle" } } },
+  },
+});
+
+// Infer types from the machine
+type States = InferStates<typeof myMachine>;   // "idle" | "running"
+type Events = InferEvents<typeof myMachine>;   // "start" | "stop"
+type Context = InferContext<typeof myMachine>; // { count: number }
+```
+
+### Using with Drizzle schemas
+
+The inference utilities are particularly useful for typing your database schema columns:
+
+```typescript
+import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { InferStates } from "machin";
+import { orderMachine } from "./order-machine";
+
+// Infer the state type from your machine
+type OrderState = InferStates<typeof orderMachine>;
+// → "pending" | "processing" | "completed" | "failed"
+
+export const ordersTable = pgTable("orders", {
+  id: uuid().primaryKey(),
+  state: text().$type<OrderState>().notNull(),
+  createdAt: timestamp().notNull(),
+  updatedAt: timestamp().notNull(),
+});
+```
+
+This ensures your database schema stays in sync with your machine definition - if you add or remove states from your machine, TypeScript will catch any mismatches.
+
 ## License
 
 MIT

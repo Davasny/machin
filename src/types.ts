@@ -171,7 +171,7 @@ export interface InputMachineConfig<TStateNodes> {
 /**
  * Extract state names from config
  */
-export type InferStates<TConfig> =
+export type InferStatesFromConfig<TConfig> =
   TConfig extends MachineConfig<
     infer _TContext,
     infer TStates,
@@ -181,9 +181,9 @@ export type InferStates<TConfig> =
     : never;
 
 /**
- * Extract all event names from state nodes
+ * Extract all event names from state nodes (internal utility)
  */
-export type InferEvents<TStateNodes> =
+type ExtractEventsFromStateNodes<TStateNodes> =
   TStateNodes extends Record<string, { on?: infer TOn }>
     ? TOn extends Record<string, unknown>
       ? keyof TOn
@@ -218,6 +218,55 @@ export type InferEventsFromStateNodes<TStateNodes> = {
       : never
     : never;
 }[keyof TStateNodes];
+
+// ============================================================
+// Machine Definition Inference Utilities
+// ============================================================
+
+/**
+ * Infer all possible states from a machine definition.
+ *
+ * @example
+ * ```ts
+ * const myMachine = machine<MyContext>().define({ ... });
+ * type States = InferStates<typeof myMachine>;
+ * // → "idle" | "loading" | "success" | "error"
+ * ```
+ */
+export type InferStates<TMachine> =
+  TMachine extends MachineDefinition<any, infer TStates, any, any>
+    ? TStates
+    : never;
+
+/**
+ * Infer all possible events from a machine definition.
+ *
+ * @example
+ * ```ts
+ * const myMachine = machine<MyContext>().define({ ... });
+ * type Events = InferEvents<typeof myMachine>;
+ * // → "start" | "stop" | "reset"
+ * ```
+ */
+export type InferEvents<TMachine> =
+  TMachine extends MachineDefinition<any, any, infer TEvents, any>
+    ? TEvents
+    : never;
+
+/**
+ * Infer context type from a machine definition.
+ *
+ * @example
+ * ```ts
+ * const myMachine = machine<MyContext>().define({ ... });
+ * type Context = InferContext<typeof myMachine>;
+ * // → { count: number; user: string | null }
+ * ```
+ */
+export type InferContext<TMachine> =
+  TMachine extends MachineDefinition<infer TContext, any, any, any>
+    ? TContext
+    : never;
 
 /**
  * Find target state for an event from any state

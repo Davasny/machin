@@ -13,9 +13,12 @@ export type {
   BoundMachine,
   EntryStateNode,
   ExtractEntryPayload,
-  InferEventsFromConfig,
   // Type utilities
+  InferContext,
+  InferEvents,
+  InferEventsFromConfig,
   InferStates,
+  InferStatesFromConfig,
   MachineConfig,
   MachineDefinition,
   PayloadForEvent,
