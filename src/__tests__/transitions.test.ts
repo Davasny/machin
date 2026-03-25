@@ -391,4 +391,148 @@ describe("Transition Flows", () => {
       expect(adapter.save).not.toHaveBeenCalled();
     });
   });
+
+  describe("Conditional transitions", () => {
+    type InvoiceContext = {
+      wfirmaState: "unknown" | "draft" | "accepted";
+      attempts: number;
+      error: string | null;
+    };
+
+    const invoiceMachine = machine<InvoiceContext>().define({
+      initial: "created_wfirma_draft",
+      states: {
+        created_wfirma_draft: {
+          on: {
+            check_wfirma_state: [
+              {
+                guard: (ctx, payload) =>
+                  ctx.attempts < 3 && payload.wfirmaState === "draft",
+                target: "checking_wfirma_state",
+              },
+              { target: "checking_wfirma_state" },
+            ],
+          },
+        },
+        checking_wfirma_state: {
+          entry: async (
+            ctx,
+            event: { wfirmaState: "draft" | "accepted"; shouldFail?: boolean },
+          ) => {
+            if (event.shouldFail) {
+              throw new Error("wfirma unavailable");
+            }
+
+            return {
+              ...ctx,
+              attempts: ctx.attempts + 1,
+              wfirmaState: event.wfirmaState,
+              error: null,
+            };
+          },
+          onSuccess: [
+            {
+              guard: (ctx) => ctx.wfirmaState === "draft",
+              target: "created_wfirma_draft",
+            },
+            {
+              guard: (ctx) => ctx.wfirmaState === "accepted",
+              target: "accepted_in_wfirma",
+            },
+          ],
+          onError: [
+            {
+              guard: (_ctx, error) =>
+                error instanceof Error && error.message.includes("unavailable"),
+              target: "checking_wfirma_state_failed",
+            },
+          ],
+        },
+        checking_wfirma_state_failed: {},
+        accepted_in_wfirma: {},
+      },
+    });
+
+    type InvoiceStates =
+      | "created_wfirma_draft"
+      | "checking_wfirma_state"
+      | "checking_wfirma_state_failed"
+      | "accepted_in_wfirma";
+
+    it("branches from updated context after entry", async () => {
+      const { adapter } = createMockAdapter<InvoiceContext, InvoiceStates>();
+
+      const initialSnapshot: Snapshot<InvoiceContext, InvoiceStates> = {
+        id: "invoice-1",
+        state: "created_wfirma_draft",
+        context: { wfirmaState: "unknown", attempts: 0, error: null },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      let actor = createActorFromSnapshot(
+        initialSnapshot,
+        invoiceMachine,
+        adapter,
+      );
+
+      actor = await actor.send("check_wfirma_state", { wfirmaState: "draft" });
+      expect(actor.state).toBe("created_wfirma_draft");
+      expect(actor.context.wfirmaState).toBe("draft");
+
+      actor = await actor.send("check_wfirma_state", {
+        wfirmaState: "accepted",
+      });
+      expect(actor.state).toBe("accepted_in_wfirma");
+      expect(actor.context.wfirmaState).toBe("accepted");
+      expect(actor.context.attempts).toBe(2);
+    });
+
+    it("uses guarded event transitions with payload", async () => {
+      const { adapter } = createMockAdapter<InvoiceContext, InvoiceStates>();
+
+      const initialSnapshot: Snapshot<InvoiceContext, InvoiceStates> = {
+        id: "invoice-2",
+        state: "created_wfirma_draft",
+        context: { wfirmaState: "draft", attempts: 3, error: null },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      let actor = createActorFromSnapshot(
+        initialSnapshot,
+        invoiceMachine,
+        adapter,
+      );
+
+      actor = await actor.send("check_wfirma_state", { wfirmaState: "draft" });
+      expect(actor.state).toBe("created_wfirma_draft");
+    });
+
+    it("uses guarded error transitions", async () => {
+      const { adapter } = createMockAdapter<InvoiceContext, InvoiceStates>();
+
+      const initialSnapshot: Snapshot<InvoiceContext, InvoiceStates> = {
+        id: "invoice-3",
+        state: "created_wfirma_draft",
+        context: { wfirmaState: "unknown", attempts: 0, error: null },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      let actor = createActorFromSnapshot(
+        initialSnapshot,
+        invoiceMachine,
+        adapter,
+      );
+
+      actor = await actor.send("check_wfirma_state", {
+        wfirmaState: "draft",
+        shouldFail: true,
+      });
+
+      expect(actor.state).toBe("checking_wfirma_state_failed");
+      expect(actor.context).toEqual(initialSnapshot.context);
+    });
+  });
 });

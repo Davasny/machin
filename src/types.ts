@@ -58,6 +58,32 @@ type HasInvalidEntry<TContext, TStates> = {
     : never;
 }[keyof TStates];
 
+type InvalidSuccessTarget<TStateNodes> = {
+  [K in keyof TStateNodes]: TStateNodes[K] extends {
+    onSuccess: infer TTransition;
+  }
+    ? Exclude<
+        ExtractTargets<TTransition>,
+        keyof TStateNodes & string
+      > extends never
+      ? never
+      : K
+    : never;
+}[keyof TStateNodes];
+
+type InvalidErrorTarget<TStateNodes> = {
+  [K in keyof TStateNodes]: TStateNodes[K] extends {
+    onError: infer TTransition;
+  }
+    ? Exclude<
+        ExtractTargets<TTransition>,
+        keyof TStateNodes & string
+      > extends never
+      ? never
+      : K
+    : never;
+}[keyof TStateNodes];
+
 /**
  * Validates machine config - adds __error property if any entry returns wrong type.
  * This forces TypeScript to error when the config is passed to machine().
@@ -76,13 +102,34 @@ export type ValidatedMachineConfig<
   TContext,
   TStates,
   TInitial extends string,
-> = HasInvalidEntry<TContext, TStates> extends never
-  ? { initial: TInitial; states: TStates }
-  : {
-      initial: TInitial;
-      states: TStates;
-      __error: `Entry in state '${HasInvalidEntry<TContext, TStates> & string}' must return exactly the context type`;
-    };
+> = HasInvalidEntry<TContext, TStates> extends infer TInvalidEntry
+  ? [TInvalidEntry] extends [never]
+    ? InvalidSuccessTarget<TStates> extends infer TInvalidSuccess
+      ? [TInvalidSuccess] extends [never]
+        ? InvalidErrorTarget<TStates> extends infer TInvalidError
+          ? [TInvalidError] extends [never]
+            ? {
+                initial: TInitial;
+                states: TStates & ValidatedStateNodes<TContext, TStates>;
+              }
+            : {
+                initial: TInitial;
+                states: TStates & ValidatedStateNodes<TContext, TStates>;
+                __error: `Transition target in onError for state '${TInvalidError & string}' must be one of defined states`;
+              }
+          : never
+        : {
+            initial: TInitial;
+            states: TStates & ValidatedStateNodes<TContext, TStates>;
+            __error: `Transition target in onSuccess for state '${TInvalidSuccess & string}' must be one of defined states`;
+          }
+      : never
+    : {
+        initial: TInitial;
+        states: TStates & ValidatedStateNodes<TContext, TStates>;
+        __error: `Entry in state '${TInvalidEntry & string}' must return exactly the context type`;
+      }
+  : never;
 
 // ============================================================
 // State Node Types
@@ -95,11 +142,64 @@ export interface TransitionTarget<TStates extends string> {
   target: TStates;
 }
 
+export type TransitionGuard<TContext, TPayload = undefined, TError = never> = [
+  TError,
+] extends [never]
+  ? [TPayload] extends [undefined]
+    ? (ctx: TContext) => boolean
+    : (ctx: TContext, payload: TPayload) => boolean
+  : (ctx: TContext, error: TError) => boolean;
+
+export interface TransitionBranch<
+  TContext,
+  TStates extends string,
+  TPayload = undefined,
+  TError = never,
+> extends TransitionTarget<TStates> {
+  guard?: TransitionGuard<TContext, TPayload, TError>;
+}
+
+export interface EventTransitionBranch<
+  TContext,
+  TStates extends string,
+  TPayload,
+> extends TransitionTarget<TStates> {
+  guard?: (ctx: TContext, payload: TPayload) => boolean;
+}
+
+export type EventTransitionDefinition<
+  TContext,
+  TStates extends string,
+  TPayload,
+> =
+  | TransitionTarget<TStates>
+  | readonly EventTransitionBranch<TContext, TStates, TPayload>[];
+
+export type SuccessTransitionDefinition<TContext, TStates extends string> =
+  | TransitionTarget<TStates>
+  | readonly TransitionBranch<TContext, TStates>[];
+
+export type ErrorTransitionDefinition<
+  TContext,
+  TStates extends string,
+  TError = unknown,
+> =
+  | TransitionTarget<TStates>
+  | readonly TransitionBranch<TContext, TStates, undefined, TError>[];
+
+type ExtractTargets<TTransition> = TTransition extends { target: infer TTarget }
+  ? TTarget
+  : TTransition extends readonly (infer TBranch)[]
+    ? TBranch extends { target: infer TTarget }
+      ? TTarget
+      : never
+    : never;
+
 /**
  * State node without entry (simple state)
  */
 export interface SimpleStateNode<TStates extends string> {
-  on?: Record<string, TransitionTarget<TStates>>;
+  on?: Record<string, EventTransitionDefinition<unknown, TStates, unknown>>;
   entry?: undefined;
   onSuccess?: undefined;
   onError?: undefined;
@@ -109,10 +209,10 @@ export interface SimpleStateNode<TStates extends string> {
  * State node with entry (must have onSuccess, optionally onError)
  */
 export interface EntryStateNode<TContext, TStates extends string, TPayload> {
-  on?: Record<string, TransitionTarget<TStates>>;
+  on?: Record<string, EventTransitionDefinition<TContext, TStates, unknown>>;
   entry: (ctx: TContext, event: TPayload) => TContext | Promise<TContext>;
-  onSuccess: TransitionTarget<TStates>;
-  onError?: TransitionTarget<TStates>;
+  onSuccess: SuccessTransitionDefinition<TContext, TStates>;
+  onError?: ErrorTransitionDefinition<TContext, TStates>;
 }
 
 /**
@@ -127,18 +227,130 @@ export type StateNode<TContext, TStates extends string> =
  */
 export type InputStateNode<TContext> =
   | {
-      on?: Record<string, { target: string }>;
+      on?: Record<string, EventTransitionDefinition<TContext, string, any>>;
       entry?: undefined;
       onSuccess?: undefined;
       onError?: undefined;
     }
   | {
-      on?: Record<string, { target: string }>;
+      on?: Record<string, EventTransitionDefinition<TContext, string, any>>;
       // biome-ignore lint/suspicious/noExplicitAny: Need any to preserve the actual event type from user input
       entry: (ctx: TContext, event: any) => TContext | Promise<TContext>;
-      onSuccess: { target: string };
-      onError?: { target: string };
+      onSuccess: SuccessTransitionDefinition<TContext, string>;
+      onError?: ErrorTransitionDefinition<TContext, string>;
     };
+
+type EventTransitionBranchForTarget<
+  TContext,
+  TStateNodes,
+  TTarget extends keyof TStateNodes & string,
+> = {
+  target: TTarget;
+  guard?: (
+    ctx: TContext,
+    payload: ExtractEntryPayload<TStateNodes[TTarget]>,
+  ) => boolean;
+};
+
+type EventTransitionForStateNodes<TContext, TStateNodes> =
+  | {
+      [TTarget in keyof TStateNodes & string]: EventTransitionBranchForTarget<
+        TContext,
+        TStateNodes,
+        TTarget
+      >;
+    }[keyof TStateNodes & string]
+  | readonly {
+      [TTarget in keyof TStateNodes & string]: EventTransitionBranchForTarget<
+        TContext,
+        TStateNodes,
+        TTarget
+      >;
+    }[keyof TStateNodes & string][];
+
+type SuccessTransitionBranchForTarget<
+  TContext,
+  TStateNodes,
+  TTarget extends keyof TStateNodes & string,
+> = {
+  target: TTarget;
+  guard?: (ctx: TContext) => boolean;
+};
+
+type SuccessTransitionForStateNodes<TContext, TStateNodes> =
+  | {
+      [TTarget in keyof TStateNodes & string]: SuccessTransitionBranchForTarget<
+        TContext,
+        TStateNodes,
+        TTarget
+      >;
+    }[keyof TStateNodes & string]
+  | readonly {
+      [TTarget in keyof TStateNodes & string]: SuccessTransitionBranchForTarget<
+        TContext,
+        TStateNodes,
+        TTarget
+      >;
+    }[keyof TStateNodes & string][];
+
+type ErrorTransitionBranchForTarget<
+  TContext,
+  TStateNodes,
+  TTarget extends keyof TStateNodes & string,
+> = {
+  target: TTarget;
+  guard?: (ctx: TContext, error: unknown) => boolean;
+};
+
+type ErrorTransitionForStateNodes<TContext, TStateNodes> =
+  | {
+      [TTarget in keyof TStateNodes & string]: ErrorTransitionBranchForTarget<
+        TContext,
+        TStateNodes,
+        TTarget
+      >;
+    }[keyof TStateNodes & string]
+  | readonly {
+      [TTarget in keyof TStateNodes & string]: ErrorTransitionBranchForTarget<
+        TContext,
+        TStateNodes,
+        TTarget
+      >;
+    }[keyof TStateNodes & string][];
+
+type ValidatedOnMap<TContext, TStateNodes, TOn> =
+  TOn extends Record<string, unknown>
+    ? {
+        [E in keyof TOn & string]: EventTransitionForStateNodes<
+          TContext,
+          TStateNodes
+        >;
+      }
+    : TOn;
+
+type ValidatedStateNodes<TContext, TStateNodes> = {
+  [K in keyof TStateNodes]: TStateNodes[K] extends {
+    entry: infer TEntry;
+  }
+    ? TEntry extends (...args: any[]) => any
+      ? {
+          on?: TStateNodes[K] extends { on?: infer TOn }
+            ? ValidatedOnMap<TContext, TStateNodes, TOn>
+            : undefined;
+          entry: TEntry;
+          onSuccess: SuccessTransitionForStateNodes<TContext, TStateNodes>;
+          onError?: ErrorTransitionForStateNodes<TContext, TStateNodes>;
+        }
+      : never
+    : {
+        on?: TStateNodes[K] extends { on?: infer TOn }
+          ? ValidatedOnMap<TContext, TStateNodes, TOn>
+          : undefined;
+        entry?: undefined;
+        onSuccess?: undefined;
+        onError?: undefined;
+      };
+};
 
 // ============================================================
 // Machine Config Types
@@ -274,9 +486,13 @@ export type InferContext<TMachine> =
  */
 export type TargetStateForEvent<TStateNodes, TEvent extends string> = {
   [K in keyof TStateNodes]: TStateNodes[K] extends {
-    on: { [E in TEvent]: { target: infer Target } };
+    on?: infer TOn;
   }
-    ? Target
+    ? TOn extends Record<string, unknown>
+      ? TEvent extends keyof TOn
+        ? ExtractTargets<TOn[TEvent]>
+        : never
+      : never
     : never;
 }[keyof TStateNodes];
 

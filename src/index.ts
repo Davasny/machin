@@ -12,6 +12,8 @@ export type {
   Adapter,
   BoundMachine,
   EntryStateNode,
+  ErrorTransitionDefinition,
+  EventTransitionDefinition,
   ExtractEntryPayload,
   // Type utilities
   InferContext,
@@ -25,5 +27,8 @@ export type {
   SimpleStateNode,
   Snapshot,
   StateNode,
+  SuccessTransitionDefinition,
+  TransitionBranch,
+  TransitionGuard,
   TransitionTarget,
 } from "./types.js";

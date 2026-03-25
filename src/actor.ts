@@ -1,10 +1,64 @@
 import type {
   Actor as ActorInterface,
   Adapter,
+  ErrorTransitionDefinition,
+  EventTransitionDefinition,
   MachineDefinition,
   PayloadForEvent,
   Snapshot,
+  SuccessTransitionDefinition,
+  TransitionBranch,
 } from "./types.js";
+
+type RuntimeStateConfig<TContext> = {
+  on?: Record<string, EventTransitionDefinition<TContext, string, unknown>>;
+  entry?: (ctx: TContext, event: unknown) => TContext | Promise<TContext>;
+  onSuccess?: SuccessTransitionDefinition<TContext, string>;
+  onError?: ErrorTransitionDefinition<TContext, string>;
+};
+
+function normalizeTransition<TContext, TPayload = undefined, TError = never>(
+  transition:
+    | { target: string }
+    | readonly TransitionBranch<TContext, string, TPayload, TError>[]
+    | undefined,
+): readonly TransitionBranch<TContext, string, TPayload, TError>[] {
+  if (!transition) {
+    return [];
+  }
+
+  return Array.isArray(transition)
+    ? transition
+    : [transition as TransitionBranch<TContext, string, TPayload, TError>];
+}
+
+function resolveTransition<TContext, TPayload = undefined, TError = never>(
+  transition:
+    | { target: string }
+    | readonly TransitionBranch<TContext, string, TPayload, TError>[]
+    | undefined,
+  ctx: TContext,
+  value?: TPayload | TError,
+): string | undefined {
+  for (const branch of normalizeTransition(transition)) {
+    if (!branch.guard) {
+      return branch.target;
+    }
+
+    const matches =
+      value === undefined
+        ? (branch.guard as (ctx: TContext) => boolean)(ctx)
+        : (
+            branch.guard as (ctx: TContext, value: TPayload | TError) => boolean
+          )(ctx, value);
+
+    if (matches) {
+      return branch.target;
+    }
+  }
+
+  return undefined;
+}
 
 /**
  * Creates an Actor instance from a snapshot
@@ -22,8 +76,12 @@ export function createActorFromSnapshot<
   return new ActorImpl(snapshot, machineDefinition, adapter);
 }
 
-class ActorImpl<TContext, TStates extends string, TEvents extends string, TStateNodes>
-  implements ActorInterface<TContext, TStates, TEvents, TStateNodes>
+class ActorImpl<
+  TContext,
+  TStates extends string,
+  TEvents extends string,
+  TStateNodes,
+> implements ActorInterface<TContext, TStates, TEvents, TStateNodes>
 {
   readonly id: string;
   readonly state: TStates;
@@ -40,7 +98,12 @@ class ActorImpl<TContext, TStates extends string, TEvents extends string, TState
 
   constructor(
     snapshot: Snapshot<TContext, TStates>,
-    machineDefinition: MachineDefinition<TContext, TStates, TEvents, TStateNodes>,
+    machineDefinition: MachineDefinition<
+      TContext,
+      TStates,
+      TEvents,
+      TStateNodes
+    >,
     adapter: Adapter<TContext, TStates>,
   ) {
     this.snapshot = snapshot;
@@ -60,27 +123,26 @@ class ActorImpl<TContext, TStates extends string, TEvents extends string, TState
     const [event, payload] = args as [E, unknown];
     const states = this.machineDefinition.config.states as Record<
       string,
-      {
-        on?: Record<string, { target: string }>;
-        entry?: (ctx: TContext, event: unknown) => TContext | Promise<TContext>;
-        onSuccess?: { target: string };
-        onError?: { target: string };
-      }
+      RuntimeStateConfig<TContext>
     >;
     const currentStateConfig = states[this.state];
 
     // Check if event is handled in current state
     const transition = currentStateConfig?.on?.[event as string];
-    if (!transition) {
+    const targetStateName = resolveTransition(
+      transition,
+      this.context,
+      payload,
+    );
+    if (!targetStateName) {
       // Unhandled event = no-op, return same actor
       return this;
     }
 
-    const targetStateName = transition.target as TStates;
     const targetStateConfig = states[targetStateName];
 
     let newContext = this.context;
-    let finalState = targetStateName;
+    let finalState = targetStateName as TStates;
 
     // Execute entry function if defined
     if (targetStateConfig?.entry) {
@@ -90,12 +152,25 @@ class ActorImpl<TContext, TStates extends string, TEvents extends string, TState
 
         // On success, transition to onSuccess target
         if (targetStateConfig.onSuccess) {
-          finalState = targetStateConfig.onSuccess.target as TStates;
+          finalState = (resolveTransition(
+            targetStateConfig.onSuccess,
+            newContext,
+          ) ?? targetStateName) as TStates;
         }
       } catch (error) {
         // On error, transition to onError target if defined
         if (targetStateConfig.onError) {
-          finalState = targetStateConfig.onError.target as TStates;
+          const errorTarget = resolveTransition(
+            targetStateConfig.onError,
+            this.context,
+            error,
+          );
+
+          if (errorTarget) {
+            finalState = errorTarget as TStates;
+          } else {
+            throw error;
+          }
         } else {
           // No onError defined - re-throw the error
           throw error;

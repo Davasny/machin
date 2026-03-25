@@ -1,6 +1,11 @@
 import { describe, expectTypeOf, it } from "vitest";
+import type {
+  InferContext,
+  InferEvents,
+  InferStates,
+  PayloadForEvent,
+} from "@/index.js";
 import { machine } from "@/machine.js";
-import type { PayloadForEvent } from "@/types.js";
 
 describe("Type Inference", () => {
   it("infers states from config keys", () => {
@@ -170,6 +175,67 @@ describe("Type Inference", () => {
     ).toBeUndefined();
   });
 
+  it("rejects invalid targets inside onSuccess guarded arrays", () => {
+    type NameContext = { name: string };
+
+    machine<NameContext>().define({
+      initial: "idle",
+      states: {
+        idle: { on: { activate: { target: "activating" } } },
+        activating: {
+          entry: (ctx, event: { name: string }) => {
+            const result: NameContext = { ...ctx, name: event.name };
+            return result;
+          },
+          // @ts-expect-error - invalid onSuccess guarded target
+          onSuccess: [
+            {
+              guard: (ctx) => ctx.name.length > 0,
+              target: "active",
+            },
+            {
+              target: "does_not_exist",
+            },
+          ],
+        },
+        active: {},
+      },
+    });
+  });
+
+  it("allows async entry with only ctx parameter alongside guarded onSuccess", () => {
+    type Context = {
+      orgId: string;
+      ksefExpected: boolean;
+      stripeInvoiceId: string;
+      wFirmaInvoiceId: string | null;
+      status: "pending" | "done";
+      retries: number;
+    };
+
+    machine<Context>().define({
+      initial: "checking",
+      states: {
+        checking: {
+          entry: async (ctx) => ({
+            ...ctx,
+            status: "done" as const,
+          }),
+          onSuccess: [
+            {
+              guard: (ctx) => ctx.status === "done",
+              target: "done",
+            },
+            { target: "checking" },
+          ],
+          onError: { target: "failed" },
+        },
+        done: {},
+        failed: {},
+      },
+    });
+  });
+
   it("infers payload type from entry function", () => {
     type MyContext = { name: string; count: number };
 
@@ -217,6 +283,244 @@ describe("Type Inference", () => {
     // The payload for "stop" should be undefined since "idle" has no entry
     type StopPayload = PayloadForEvent<typeof m.config.states, "stop">;
     expectTypeOf<StopPayload>().toEqualTypeOf<undefined>();
+  });
+
+  it("infers payload types for guarded event transitions", () => {
+    type MyContext = { name: string; attempts: number };
+
+    const m = machine<MyContext>().define({
+      initial: "idle",
+      states: {
+        idle: {
+          on: {
+            start: [
+              {
+                guard: (ctx, payload) => {
+                  const typedContext: MyContext = ctx;
+                  const typedPayload: { name: string; attempts: number } =
+                    payload;
+                  return typedPayload.attempts > typedContext.attempts;
+                },
+                target: "starting",
+              },
+              { target: "starting" },
+            ],
+          },
+        },
+        starting: {
+          entry: (ctx, event: { name: string; attempts: number }) => ({
+            ...ctx,
+            name: event.name,
+            attempts: event.attempts,
+          }),
+          onSuccess: [
+            {
+              guard: (ctx) => {
+                expectTypeOf(ctx).toEqualTypeOf<MyContext>();
+                return ctx.attempts > 0;
+              },
+              target: "running",
+            },
+            { target: "idle" },
+          ],
+          onError: [
+            {
+              guard: (_ctx, error) => {
+                expectTypeOf(error).toEqualTypeOf<unknown>();
+                return error instanceof Error;
+              },
+              target: "failed",
+            },
+          ],
+        },
+        running: {},
+        failed: {},
+      },
+    });
+
+    type StartPayload = PayloadForEvent<typeof m.config.states, "start">;
+    expectTypeOf<StartPayload>().toEqualTypeOf<{
+      name: string;
+      attempts: number;
+    }>();
+  });
+
+  it("infers union payloads when guarded branches target different entry payloads", () => {
+    type MyContext = { status: string };
+
+    const m = machine<MyContext>().define({
+      initial: "idle",
+      states: {
+        idle: {
+          on: {
+            begin: [
+              {
+                guard: (_ctx, payload) => {
+                  const typedPayload:
+                    | { invoiceId: string }
+                    | { customerId: string } = payload;
+                  return "invoiceId" in typedPayload;
+                },
+                target: "invoice_flow",
+              },
+              { target: "customer_flow" },
+            ],
+          },
+        },
+        invoice_flow: {
+          entry: (ctx, event: { invoiceId: string }) => ({
+            ...ctx,
+            status: event.invoiceId,
+          }),
+          onSuccess: { target: "done" },
+        },
+        customer_flow: {
+          entry: (ctx, event: { customerId: string }) => ({
+            ...ctx,
+            status: event.customerId,
+          }),
+          onSuccess: { target: "done" },
+        },
+        done: {},
+      },
+    });
+
+    type BeginPayload = PayloadForEvent<typeof m.config.states, "begin">;
+    expectTypeOf<BeginPayload>().toEqualTypeOf<
+      { invoiceId: string } | { customerId: string }
+    >();
+  });
+});
+
+describe("Exported Infer Type Utilities", () => {
+  it("InferStates produces correct state union", () => {
+    const m = machine<Record<string, never>>().define({
+      initial: "idle",
+      states: {
+        idle: { on: { start: { target: "loading" } } },
+        loading: {
+          on: { succeed: { target: "success" }, fail: { target: "error" } },
+        },
+        success: { on: { reset: { target: "idle" } } },
+        error: { on: { reset: { target: "idle" } } },
+      },
+    });
+
+    type States = InferStates<typeof m>;
+    expectTypeOf<States>().toEqualTypeOf<
+      "idle" | "loading" | "success" | "error"
+    >();
+  });
+
+  it("InferEvents produces correct event union", () => {
+    const m = machine<Record<string, never>>().define({
+      initial: "idle",
+      states: {
+        idle: { on: { start: { target: "loading" } } },
+        loading: {
+          on: { succeed: { target: "success" }, fail: { target: "error" } },
+        },
+        success: { on: { reset: { target: "idle" } } },
+        error: { on: { reset: { target: "idle" } } },
+      },
+    });
+
+    type Events = InferEvents<typeof m>;
+    expectTypeOf<Events>().toEqualTypeOf<
+      "start" | "succeed" | "fail" | "reset"
+    >();
+  });
+
+  it("InferContext produces correct context type", () => {
+    type MyContext = { count: number; name: string };
+
+    const m = machine<MyContext>().define({
+      initial: "idle",
+      states: {
+        idle: {},
+      },
+    });
+
+    type Context = InferContext<typeof m>;
+    expectTypeOf<Context>().toEqualTypeOf<MyContext>();
+  });
+
+  it("InferStates equals machine._types.states", () => {
+    const m = machine<Record<string, never>>().define({
+      initial: "idle",
+      states: {
+        idle: { on: { start: { target: "running" } } },
+        running: { on: { stop: { target: "idle" } } },
+      },
+    });
+
+    type InferredStates = InferStates<typeof m>;
+    type TypesStates = typeof m._types.states;
+
+    expectTypeOf<InferredStates>().toEqualTypeOf<TypesStates>();
+  });
+
+  it("InferEvents equals machine._types.events", () => {
+    const m = machine<Record<string, never>>().define({
+      initial: "idle",
+      states: {
+        idle: { on: { start: { target: "running" } } },
+        running: { on: { stop: { target: "idle" } } },
+      },
+    });
+
+    type InferredEvents = InferEvents<typeof m>;
+    type TypesEvents = typeof m._types.events;
+
+    expectTypeOf<InferredEvents>().toEqualTypeOf<TypesEvents>();
+  });
+
+  it("InferContext equals machine._types.context", () => {
+    type MyContext = { count: number; name: string };
+
+    const m = machine<MyContext>().define({
+      initial: "idle",
+      states: {
+        idle: {},
+      },
+    });
+
+    type InferredContext = InferContext<typeof m>;
+    type TypesContext = typeof m._types.context;
+
+    expectTypeOf<InferredContext>().toEqualTypeOf<TypesContext>();
+  });
+
+  it("Edge case: single state with no events", () => {
+    const m = machine<Record<string, never>>().define({
+      initial: "idle",
+      states: {
+        idle: {},
+      },
+    });
+
+    type States = InferStates<typeof m>;
+    type Events = InferEvents<typeof m>;
+
+    expectTypeOf<States>().toEqualTypeOf<"idle">();
+    expectTypeOf<Events>().toEqualTypeOf<never>();
+  });
+
+  it("Edge case: complex context with optional and nested fields", () => {
+    type ComplexContext = {
+      user: { id: string; name?: string };
+      settings?: { theme: string };
+    };
+
+    const m = machine<ComplexContext>().define({
+      initial: "idle",
+      states: {
+        idle: {},
+      },
+    });
+
+    type Context = InferContext<typeof m>;
+    expectTypeOf<Context>().toEqualTypeOf<ComplexContext>();
   });
 });
 

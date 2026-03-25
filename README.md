@@ -80,6 +80,75 @@ console.log(actor.state); // "completed"
 
 State is persisted automatically after each transition.
 
+## Conditional transitions
+
+Guards can be used in `on`, `onSuccess`, and `onError`. For entry states, `onSuccess`
+guards run against the updated context returned by `entry`.
+
+```typescript
+import { machine } from "machin";
+
+type OrderContext = {
+  paymentStatus:
+    | "pending"
+    | "authorized"
+    | "requires_manual_review"
+    | "retryable_failure";
+  attempts: number;
+};
+
+const orderMachine = machine<OrderContext>().define({
+  initial: "awaiting_payment",
+  states: {
+    awaiting_payment: {
+      on: {
+        charge: [
+          {
+            guard: (ctx, payload) =>
+              ctx.attempts < 3 && payload.amount > 0,
+            target: "charging_card",
+          },
+          { target: "payment_failed" },
+        ],
+      },
+    },
+    charging_card: {
+      entry: async (
+        ctx,
+        event: {
+          amount: number;
+          outcome: "authorized" | "requires_manual_review" | "retryable_failure";
+        },
+      ) => {
+        return {
+          ...ctx,
+          attempts: ctx.attempts + 1,
+          paymentStatus: event.outcome,
+        };
+      },
+      onSuccess: [
+        {
+          guard: (ctx) => ctx.paymentStatus === "authorized",
+          target: "paid",
+        },
+        {
+          guard: (ctx) => ctx.paymentStatus === "requires_manual_review",
+          target: "awaiting_manual_review",
+        },
+        {
+          guard: (ctx) => ctx.paymentStatus === "retryable_failure",
+          target: "payment_failed",
+        },
+      ],
+      onError: { target: "payment_failed" },
+    },
+    awaiting_manual_review: {},
+    paid: {},
+    payment_failed: {},
+  },
+});
+```
+
 ## Storage adapters
 
 ### Postgres
