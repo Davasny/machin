@@ -223,6 +223,7 @@ describe("withDrizzleSQLite()", () => {
       expect(actor?.id).toBe("sub_123");
       expect(actor?.state).toBe("active");
       expect(actor?.context).toEqual({ count: 5, name: "TestActor" });
+      expect(actor?.nextEvents).toEqual(["deactivate"]);
     });
   });
 

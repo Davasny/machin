@@ -230,6 +230,7 @@ describe("withRedis", () => {
       expect(actor).not.toBeNull();
       expect(actor?.id).toBe("sub_123");
       expect(actor?.state).toBe("inactive");
+      expect(actor?.nextEvents).toEqual(["activate"]);
     });
   });
 

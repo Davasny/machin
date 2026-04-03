@@ -307,6 +307,160 @@ describe("Actor", () => {
     });
   });
 
+  describe("nextEvents", () => {
+    it("returns unguarded events for the current state", () => {
+      const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
+        id: "test-next-events-1",
+        state: "idle",
+        context: { count: 0 },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const actor = createActorFromSnapshot(
+        snapshot,
+        simpleMachine,
+        mockAdapter as Adapter<SimpleContext, "idle" | "running">,
+      );
+
+      expect(actor.nextEvents).toEqual(["start"]);
+    });
+
+    it("returns only guarded events available from current context", () => {
+      type GuardedContext = { enabled: boolean };
+
+      const guardedMachine = machine<GuardedContext>().define({
+        initial: "idle",
+        states: {
+          idle: {
+            on: {
+              activate: [
+                {
+                  guard: (ctx) => ctx.enabled,
+                  target: "active",
+                },
+              ],
+              disable: { target: "disabled" },
+            },
+          },
+          active: {},
+          disabled: {},
+        },
+      });
+
+      const disabledActor = createActorFromSnapshot(
+        {
+          id: "test-next-events-2",
+          state: "idle",
+          context: { enabled: false },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        guardedMachine,
+        mockAdapter as Adapter<GuardedContext, "idle" | "active" | "disabled">,
+      );
+
+      const enabledActor = createActorFromSnapshot(
+        {
+          id: "test-next-events-3",
+          state: "idle",
+          context: { enabled: true },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        guardedMachine,
+        mockAdapter as Adapter<GuardedContext, "idle" | "active" | "disabled">,
+      );
+
+      expect(disabledActor.nextEvents).toEqual(["disable"]);
+      expect(enabledActor.nextEvents).toEqual(["activate", "disable"]);
+    });
+
+    it("includes payload-required events by name", () => {
+      const snapshot: Snapshot<
+        EntryContext,
+        "inactive" | "activating" | "active" | "failed"
+      > = {
+        id: "test-next-events-4",
+        state: "inactive",
+        context: { name: "", count: 0 },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const actor = createActorFromSnapshot(
+        snapshot,
+        entryMachine,
+        mockAdapter as Adapter<
+          EntryContext,
+          "inactive" | "activating" | "active" | "failed"
+        >,
+      );
+
+      expect(actor.nextEvents).toEqual(["activate"]);
+    });
+
+    it("returns an empty array when the current state has no outgoing events", () => {
+      const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
+        id: "test-next-events-5",
+        state: "running",
+        context: { count: 0 },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const actor = createActorFromSnapshot(
+        snapshot,
+        simpleMachine,
+        mockAdapter as Adapter<SimpleContext, "idle" | "running">,
+      );
+
+      expect(actor.nextEvents).toEqual(["stop"]);
+
+      const terminalMachine = machine<Record<string, never>>().define({
+        initial: "done",
+        states: {
+          done: {},
+        },
+      });
+
+      const terminalActor = createActorFromSnapshot(
+        {
+          id: "test-next-events-6",
+          state: "done",
+          context: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        terminalMachine,
+        mockAdapter as Adapter<Record<string, never>, "done">,
+      );
+
+      expect(terminalActor.nextEvents).toEqual([]);
+    });
+
+    it("refreshes nextEvents on the new immutable actor returned by send", async () => {
+      const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
+        id: "test-next-events-7",
+        state: "idle",
+        context: { count: 0 },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const actor = createActorFromSnapshot(
+        snapshot,
+        simpleMachine,
+        mockAdapter as Adapter<SimpleContext, "idle" | "running">,
+      );
+
+      const nextActor = await actor.send("start");
+
+      expect(actor.nextEvents).toEqual(["start"]);
+      expect(nextActor.nextEvents).toEqual(["stop"]);
+    });
+  });
+
   describe("Actor immutability", () => {
     it("send returns a new Actor instance", async () => {
       const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {

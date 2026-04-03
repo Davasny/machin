@@ -589,6 +589,7 @@ export interface Actor<
   readonly id: string;
   readonly state: TStates;
   readonly context: TContext;
+  readonly nextEvents: TEvents[];
   send: ActorSendMethod<TContext, TStates, TEvents, TStateNodes>;
 }
 

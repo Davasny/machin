@@ -1,9 +1,12 @@
 import { describe, expectTypeOf, it } from "vitest";
+import { createActorFromSnapshot } from "@/actor.js";
 import type {
+  Adapter,
   InferContext,
   InferEvents,
   InferStates,
   PayloadForEvent,
+  Snapshot,
 } from "@/index.js";
 import { machine } from "@/machine.js";
 
@@ -53,6 +56,40 @@ describe("Type Inference", () => {
     expectTypeOf(m._types.events).toEqualTypeOf<
       "start" | "configure" | "stop" | "pause" | "resume" | "done"
     >();
+  });
+
+  it("types actor.nextEvents as the machine event union", () => {
+    const m = machine<Record<string, never>>().define({
+      initial: "idle",
+      states: {
+        idle: { on: { start: { target: "running" } } },
+        running: { on: { stop: { target: "idle" } } },
+      },
+    });
+
+    const snapshot: Snapshot<Record<string, never>, "idle" | "running"> = {
+      id: "actor-1",
+      state: "idle",
+      context: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const adapter: Adapter<Record<string, never>, "idle" | "running"> = {
+      load: async () => null,
+      create: async (_id, state, context) => ({
+        id: "actor-1",
+        state,
+        context,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      save: async () => undefined,
+    };
+
+    const actor = createActorFromSnapshot(snapshot, m, adapter);
+
+    expectTypeOf(actor.nextEvents).toEqualTypeOf<("start" | "stop")[]>();
   });
 
   it("infers context type from generic", () => {

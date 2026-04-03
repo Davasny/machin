@@ -25,6 +25,7 @@ const actor = await subscriptionMachine.createActor(subscriberId, {
 
 console.log(`✅ Actor spawned successfully`);
 console.log(`   └─ Current state: "${actor.state}"`);
+console.log(`   └─ Next events: ${JSON.stringify(actor.nextEvents)}`);
 console.log(`   └─ Actor ID: "${subscriberId}"\n`);
 
 console.log("━".repeat(60));
@@ -38,6 +39,7 @@ const activateResult = await actor.send("activate", {
 console.log(`\n✅ Event processed successfully`);
 console.log(`   └─ Previous state: "${actor.state}"`);
 console.log(`   └─ New state: "${activateResult.state}"`);
+console.log(`   └─ Next events: ${JSON.stringify(activateResult.nextEvents)}`);
 console.log(`   └─ Context updated with customer ID\n`);
 
 console.log("━".repeat(60));

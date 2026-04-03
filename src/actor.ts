@@ -17,6 +17,12 @@ type RuntimeStateConfig<TContext> = {
   onError?: ErrorTransitionDefinition<TContext, string>;
 };
 
+function isPayloadAwareGuard<TContext, TPayload = undefined, TError = never>(
+  branch: TransitionBranch<TContext, string, TPayload, TError>,
+): boolean {
+  return (branch.guard?.length ?? 0) > 1;
+}
+
 function normalizeTransition<TContext, TPayload = undefined, TError = never>(
   transition:
     | { target: string }
@@ -60,6 +66,42 @@ function resolveTransition<TContext, TPayload = undefined, TError = never>(
   return undefined;
 }
 
+function getNextEvents<TContext, TEvents extends string>(
+  states: Record<string, RuntimeStateConfig<TContext>>,
+  currentState: string,
+  context: TContext,
+): TEvents[] {
+  const currentStateConfig = states[currentState];
+
+  if (!currentStateConfig?.on) {
+    return [];
+  }
+
+  const nextEvents: TEvents[] = [];
+
+  for (const [event, transition] of Object.entries(currentStateConfig.on)) {
+    const branches = normalizeTransition(transition);
+
+    const isAvailable = branches.some((branch) => {
+      if (!branch.guard) {
+        return true;
+      }
+
+      if (isPayloadAwareGuard(branch)) {
+        return true;
+      }
+
+      return (branch.guard as (ctx: TContext) => boolean)(context);
+    });
+
+    if (isAvailable) {
+      nextEvents.push(event as TEvents);
+    }
+  }
+
+  return nextEvents;
+}
+
 /**
  * Creates an Actor instance from a snapshot
  */
@@ -86,6 +128,7 @@ class ActorImpl<
   readonly id: string;
   readonly state: TStates;
   readonly context: TContext;
+  readonly nextEvents: TEvents[];
 
   private readonly snapshot: Snapshot<TContext, TStates>;
   private readonly machineDefinition: MachineDefinition<
@@ -113,6 +156,14 @@ class ActorImpl<
     this.id = snapshot.id;
     this.state = snapshot.state;
     this.context = snapshot.context;
+    this.nextEvents = getNextEvents<TContext, TEvents>(
+      this.machineDefinition.config.states as Record<
+        string,
+        RuntimeStateConfig<TContext>
+      >,
+      this.state,
+      this.context,
+    );
   }
 
   send = async <E extends TEvents>(

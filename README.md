@@ -23,6 +23,7 @@ machin handles both. Define your machine, pick a storage adapter, and your state
 - Awaitable by design
 - Postgres, SQLite, and Redis adapters included
 - Full TypeScript inference for states, events, and context
+- Inspect sendable events with `actor.nextEvents`
 
 ## Installation
 
@@ -71,14 +72,33 @@ const orderMachine = machine<Context>().define({
 // Bind to storage
 const boundMachine = withDrizzlePg(orderMachine, { db, table: ordersTable });
 
-// Create an actor and send events
+// Create an actor and inspect what can be sent now
 const actor = await boundMachine.createActor("order-123", { customerId: null });
-await actor.send("confirm", { customerId: "customer-456" });
+console.log(actor.nextEvents); // ["confirm"]
 
-console.log(actor.state); // "completed"
+// Actors are immutable, so keep the returned actor
+const nextActor = await actor.send("confirm", { customerId: "customer-456" });
+
+console.log(nextActor.state); // "completed"
+console.log(nextActor.nextEvents); // []
 ```
 
 State is persisted automatically after each transition.
+
+## Inspecting next events
+
+Each actor exposes `nextEvents`, which lists the event names available from its current state.
+
+```typescript
+const actor = await boundMachine.getActor("order-123");
+
+if (actor) {
+  console.log(actor.state);
+  console.log(actor.nextEvents);
+}
+```
+
+`nextEvents` returns names only. If an event targets a state with an `entry` payload, you still pass that payload when calling `send()`.
 
 ## Conditional transitions
 
