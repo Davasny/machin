@@ -70,6 +70,7 @@ describe("Type Inference", () => {
     const snapshot: Snapshot<Record<string, never>, "idle" | "running"> = {
       id: "actor-1",
       state: "idle",
+      errorMessage: "",
       context: {},
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -80,6 +81,7 @@ describe("Type Inference", () => {
       create: async (_id, state, context) => ({
         id: "actor-1",
         state,
+        errorMessage: "",
         context,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -380,6 +382,88 @@ describe("Type Inference", () => {
       name: string;
       attempts: number;
     }>();
+  });
+
+  it("allows onActorError and types error as unknown", () => {
+    type MyContext = { error: string | null };
+
+    machine<MyContext>().define({
+      initial: "idle",
+      states: {
+        idle: { on: { start: { target: "starting" } } },
+        starting: {
+          entry: (ctx, _event: Record<string, never>) => ctx,
+          onSuccess: { target: "done" },
+          onError: { target: "failed" },
+        },
+        done: {},
+        failed: {},
+      },
+      onActorError: ({ id, state, error, context }) => {
+        expectTypeOf(id).toEqualTypeOf<string>();
+        expectTypeOf(state).toEqualTypeOf<string>();
+        expectTypeOf(error).toEqualTypeOf<unknown>();
+        expectTypeOf(context).toEqualTypeOf<MyContext>();
+      },
+    });
+  });
+
+  it("allows onError guarded branches without context mutation", () => {
+    type MyContext = { error: string | null };
+
+    machine<MyContext>().define({
+      initial: "idle",
+      states: {
+        idle: { on: { start: { target: "starting" } } },
+        starting: {
+          entry: (ctx, _event: Record<string, never>) => ctx,
+          onSuccess: { target: "done" },
+          onError: [
+            {
+              guard: (_ctx, error) => error instanceof Error,
+              target: "failed",
+            },
+          ],
+        },
+        done: {},
+        failed: {},
+      },
+    });
+  });
+
+  it("rejects updateContext in transitions", () => {
+    type MyContext = { value: string };
+
+    machine<MyContext>().define({
+      initial: "idle",
+      states: {
+        idle: {
+          on: {
+            start: [
+              {
+                target: "starting",
+                // @ts-expect-error - updateContext is no longer supported
+                updateContext: (ctx: MyContext) => ctx,
+              },
+            ],
+          },
+        },
+        starting: {
+          entry: (ctx, _event: Record<string, never>) => ctx,
+          onSuccess: [
+            {
+              target: "done",
+              // @ts-expect-error - updateContext is no longer supported
+              updateContext: (ctx: MyContext) => ctx,
+            },
+          ],
+          onError: { target: "failed" },
+        },
+        done: {},
+        failed: {},
+      },
+    });
+
   });
 
   it("infers union payloads when guarded branches target different entry payloads", () => {

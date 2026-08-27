@@ -45,10 +45,10 @@ function resolveTransition<TContext, TPayload = undefined, TError = never>(
     | undefined,
   ctx: TContext,
   value?: TPayload | TError,
-): string | undefined {
+): TransitionBranch<TContext, string, TPayload, TError> | undefined {
   for (const branch of normalizeTransition(transition)) {
     if (!branch.guard) {
-      return branch.target;
+      return branch;
     }
 
     const matches =
@@ -59,7 +59,7 @@ function resolveTransition<TContext, TPayload = undefined, TError = never>(
           )(ctx, value);
 
     if (matches) {
-      return branch.target;
+      return branch;
     }
   }
 
@@ -180,45 +180,64 @@ class ActorImpl<
 
     // Check if event is handled in current state
     const transition = currentStateConfig?.on?.[event as string];
-    const targetStateName = resolveTransition(
+    const targetTransition = resolveTransition(
       transition,
       this.context,
       payload,
     );
-    if (!targetStateName) {
+    if (!targetTransition) {
       // Unhandled event = no-op, return same actor
       return this;
     }
+
+    const targetStateName = targetTransition.target;
 
     const targetStateConfig = states[targetStateName];
 
     let newContext = this.context;
     let finalState = targetStateName as TStates;
+    let errorMessage = this.snapshot.errorMessage;
 
     // Execute entry function if defined
     if (targetStateConfig?.entry) {
       try {
         const result = targetStateConfig.entry(this.context, payload);
         newContext = result instanceof Promise ? await result : result;
+        errorMessage = "";
 
         // On success, transition to onSuccess target
         if (targetStateConfig.onSuccess) {
           finalState = (resolveTransition(
             targetStateConfig.onSuccess,
             newContext,
-          ) ?? targetStateName) as TStates;
+          )?.target ?? targetStateName) as TStates;
         }
       } catch (error) {
+        const onActorError = this.machineDefinition.config.onActorError;
+        if (onActorError) {
+          try {
+            onActorError({
+              id: this.id,
+              state: targetStateName as TStates,
+              error,
+              context: this.context,
+            });
+          } catch {
+            // Observability hooks must not break state transitions.
+          }
+        }
+
         // On error, transition to onError target if defined
         if (targetStateConfig.onError) {
-          const errorTarget = resolveTransition(
+          const errorTransition = resolveTransition(
             targetStateConfig.onError,
             this.context,
             error,
           );
 
-          if (errorTarget) {
-            finalState = errorTarget as TStates;
+          if (errorTransition) {
+            errorMessage = getErrorMessage(error);
+            finalState = errorTransition.target as TStates;
           } else {
             throw error;
           }
@@ -233,6 +252,7 @@ class ActorImpl<
     const newSnapshot: Snapshot<TContext, TStates> = {
       id: this.id,
       state: finalState,
+      errorMessage,
       context: newContext,
       createdAt: this.snapshot.createdAt,
       updatedAt: new Date(),
@@ -244,4 +264,8 @@ class ActorImpl<
     // Return new Actor instance (immutable)
     return new ActorImpl(newSnapshot, this.machineDefinition, this.adapter);
   };
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

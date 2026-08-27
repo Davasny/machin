@@ -36,7 +36,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:types": "vitest typecheck",
+    "test:types": "vitest run --typecheck",
     "test:release": "node .github/scripts/validate-version.test.cjs",
     "lint": "tsc --noEmit",
     "publish:local": "yalc publish"

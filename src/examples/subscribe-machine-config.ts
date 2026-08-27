@@ -44,4 +44,7 @@ export const subscribeMachineConfig = machine<SubContext>().define({
       },
     },
   },
+  onActorError: ({ id, state, error }) => {
+    console.error("Subscription actor entry failed", { id, state, error });
+  },
 });

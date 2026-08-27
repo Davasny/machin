@@ -169,6 +169,67 @@ const orderMachine = machine<OrderContext>().define({
 });
 ```
 
+## Error handling
+
+When an `entry` function throws, `onError` can transition to a failure state and
+optionally update context with error details.
+
+```typescript
+import { machine } from "machin";
+
+type PaymentContext = { result: string | null };
+
+const paymentMachine = machine<PaymentContext>().define({
+  initial: "pending",
+  states: {
+    pending: { on: { charge: { target: "charging" } } },
+    charging: {
+      entry: async (ctx, event: { amount: number }) => {
+        return { ...ctx, result: await charge(event.amount) };
+      },
+      onSuccess: { target: "completed" },
+      onError: {
+        target: "charging_failed",
+      },
+    },
+    completed: {},
+    charging_failed: { on: { retry: { target: "charging" } } },
+  },
+  onActorError: ({ id, state, error, context }) => {
+    logger.error({ id, state, error, context }, "Actor entry failed");
+  },
+});
+```
+
+When an `entry` fails and an `onError` branch matches, machin stores the thrown
+message in the internal `errorMessage` snapshot field and persists it with the
+new state.
+
+Guarded `onError` arrays still choose the failure state. The library stores the
+same error message regardless of which branch matches.
+
+```typescript
+onError: [
+  {
+    guard: (_ctx, error) => error instanceof RetryablePaymentError,
+    target: "retryable_failure",
+  },
+  {
+    target: "fatal_failure",
+  },
+]
+```
+
+Error handling semantics:
+
+- `onActorError` fires once when an `entry` throws.
+- `onActorError` receives a single payload object (`{ id, state, error, context }`)
+  with the original context before persistence.
+- Exceptions thrown by `onActorError` are ignored.
+- `errorMessage` is set when a matching `onError` transition handles an error.
+- `errorMessage` is cleared after a successful `entry` transition.
+- Non-entry transitions preserve the existing `errorMessage`.
+
 ## Storage adapters
 
 ### Postgres
@@ -203,6 +264,7 @@ Your table needs these columns:
 
 - `id` (text, primary key)
 - `state` (text)
+- `errorMessage` (text, required; empty string means no current error)
 - `createdAt` (timestamp)
 - `updatedAt` (timestamp)
 
@@ -245,12 +307,19 @@ type OrderState = InferStates<typeof orderMachine>;
 export const ordersTable = pgTable("orders", {
   id: uuid().primaryKey(),
   state: text().$type<OrderState>().notNull(),
+  errorMessage: text().notNull(),
   createdAt: timestamp().notNull(),
   updatedAt: timestamp().notNull(),
 });
 ```
 
 This ensures your database schema stays in sync with your machine definition - if you add or remove states from your machine, TypeScript will catch any mismatches.
+
+### Migrating to 2.0.0
+
+`machin@2.0.0` adds the required internal `errorMessage` field. Existing
+database tables need an `errorMessage`/`error_message` text column. Existing
+snapshots should be backfilled with an empty string.
 
 ## License
 

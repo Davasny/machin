@@ -9,6 +9,8 @@ export { machine } from "./machine.js";
 // Types
 export type {
   Actor,
+  ActorErrorHandler,
+  ActorErrorPayload,
   Adapter,
   BoundMachine,
   EntryStateNode,

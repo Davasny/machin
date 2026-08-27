@@ -8,6 +8,7 @@ import { machine } from "@/machine.js";
 const subscriptionsTable = pgTable("subscriptions", {
   id: uuid().primaryKey(),
   state: text().notNull(),
+  errorMessage: text().notNull(),
   createdAt: timestamp().notNull(),
   updatedAt: timestamp().notNull(),
   count: integer().notNull(),
@@ -148,6 +149,7 @@ describe("withDrizzleSQLite()", () => {
       expect(inserted).toMatchObject({
         id: "sub_123",
         state: "inactive",
+        errorMessage: "",
         count: 0,
         name: null,
       });
@@ -160,6 +162,7 @@ describe("withDrizzleSQLite()", () => {
       mockDb._storage.set("sub_123", {
         id: "sub_123",
         state: "inactive",
+        errorMessage: "",
         count: 0,
         name: null,
         createdAt: new Date(),
@@ -203,6 +206,7 @@ describe("withDrizzleSQLite()", () => {
       mockDb._storage.set("sub_123", {
         id: "sub_123",
         state: "active",
+        errorMessage: "",
         count: 5,
         name: "TestActor",
         createdAt: new Date("2024-01-01"),
@@ -260,6 +264,7 @@ describe("withDrizzleSQLite()", () => {
       expect(updateCalls.length).toBeGreaterThan(0);
       expect(updateCalls[0]?.set).toMatchObject({
         state: "active",
+        errorMessage: "",
         name: "NewName",
         count: 1,
       });

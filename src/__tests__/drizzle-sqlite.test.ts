@@ -8,6 +8,7 @@ import { machine } from "@/machine.js";
 const subscriptionsTable = sqliteTable("subscriptions", {
   id: text("id").primaryKey(),
   state: text("state").notNull(),
+  errorMessage: text("error_message").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   count: integer("count").notNull(),
@@ -139,6 +140,7 @@ describe("withDrizzleSQLite() - SQLite", () => {
       expect(inserted).toMatchObject({
         id: "sub_123",
         state: "inactive",
+        errorMessage: "",
         count: 0,
         name: null,
       });
@@ -150,6 +152,7 @@ describe("withDrizzleSQLite() - SQLite", () => {
       mockDb._storage.set("sub_123", {
         id: "sub_123",
         state: "inactive",
+        errorMessage: "",
         count: 0,
         name: null,
         createdAt: new Date(),
@@ -192,6 +195,7 @@ describe("withDrizzleSQLite() - SQLite", () => {
       mockDb._storage.set("sub_123", {
         id: "sub_123",
         state: "active",
+        errorMessage: "",
         count: 5,
         name: "TestActor",
         createdAt: new Date("2024-01-01"),
@@ -248,6 +252,7 @@ describe("withDrizzleSQLite() - SQLite", () => {
       expect(updateCalls.length).toBeGreaterThan(0);
       expect(updateCalls[0]?.set).toMatchObject({
         state: "active",
+        errorMessage: "",
         name: "NewName",
         count: 1,
       });

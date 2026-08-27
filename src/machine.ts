@@ -1,4 +1,5 @@
 import type {
+  ActorErrorHandler,
   InferEventsFromStateNodes,
   InputStateNode,
   MachineDefinition,
@@ -43,6 +44,10 @@ export function machine<TContext>(): {
       : {
           initial: keyof TStateNodes & string;
           states: TStateNodes;
+          onActorError?: ActorErrorHandler<
+            TContext,
+            keyof TStateNodes & string
+          >;
         },
   ): MachineDefinition<
     TContext,
@@ -57,6 +62,7 @@ export function machine<TContext>(): {
         config: config as {
           initial: string;
           states: Record<string, InputStateNode<TContext>>;
+          onActorError?: ActorErrorHandler<TContext, string>;
         },
         _types: {} as {
           context: TContext;

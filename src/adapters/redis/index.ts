@@ -42,6 +42,7 @@ export interface RedisAdapterConfig {
 interface SerializedSnapshot<TContext, TStates extends string> {
   id: string;
   state: TStates;
+  errorMessage: string;
   context: TContext;
   createdAt: string;
   updatedAt: string;
@@ -75,6 +76,7 @@ export class RedisAdapter<TContext, TStates extends string>
     return {
       id: data.id,
       state: data.state,
+      errorMessage: data.errorMessage,
       context: data.context,
       createdAt: new Date(data.createdAt),
       updatedAt: new Date(data.updatedAt),
@@ -91,6 +93,7 @@ export class RedisAdapter<TContext, TStates extends string>
     const snapshot: Snapshot<TContext, TStates> = {
       id,
       state,
+      errorMessage: "",
       context,
       createdAt: now,
       updatedAt: now,

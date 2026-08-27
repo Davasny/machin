@@ -46,6 +46,7 @@ describe("Transition Flows", () => {
       > = {
         id: "light-1",
         state: "red",
+        errorMessage: "",
         context: { cycleCount: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -128,6 +129,7 @@ describe("Transition Flows", () => {
       const initialSnapshot: Snapshot<OrderContext, OrderStates> = {
         id: "order-1",
         state: "pending",
+        errorMessage: "",
         context: { orderId: "", totalAmount: 0, paymentId: null, error: null },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -193,6 +195,7 @@ describe("Transition Flows", () => {
       > = {
         id: "order-fail",
         state: "pending",
+        errorMessage: "",
         context: { attempts: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -287,6 +290,7 @@ describe("Transition Flows", () => {
       const initialSnapshot: Snapshot<DocContext, DocStates> = {
         id: "doc-1",
         state: "draft",
+        errorMessage: "",
         context: { title: "", content: "", reviewedBy: null, approvedBy: null },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -323,6 +327,7 @@ describe("Transition Flows", () => {
       const initialSnapshot: Snapshot<DocContext, DocStates> = {
         id: "doc-2",
         state: "in_review",
+        errorMessage: "",
         context: {
           title: "Draft Doc",
           content: "Needs work",
@@ -372,6 +377,7 @@ describe("Transition Flows", () => {
       const initialSnapshot: Snapshot<Record<string, never>, "a" | "b"> = {
         id: "test-1",
         state: "a",
+        errorMessage: "",
         context: {},
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -465,6 +471,7 @@ describe("Transition Flows", () => {
       const initialSnapshot: Snapshot<InvoiceContext, InvoiceStates> = {
         id: "invoice-1",
         state: "created_wfirma_draft",
+        errorMessage: "",
         context: { wfirmaState: "unknown", attempts: 0, error: null },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -494,6 +501,7 @@ describe("Transition Flows", () => {
       const initialSnapshot: Snapshot<InvoiceContext, InvoiceStates> = {
         id: "invoice-2",
         state: "created_wfirma_draft",
+        errorMessage: "",
         context: { wfirmaState: "draft", attempts: 3, error: null },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -515,6 +523,7 @@ describe("Transition Flows", () => {
       const initialSnapshot: Snapshot<InvoiceContext, InvoiceStates> = {
         id: "invoice-3",
         state: "created_wfirma_draft",
+        errorMessage: "",
         context: { wfirmaState: "unknown", attempts: 0, error: null },
         createdAt: new Date(),
         updatedAt: new Date(),

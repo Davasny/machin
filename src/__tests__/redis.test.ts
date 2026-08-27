@@ -45,6 +45,7 @@ describe("RedisAdapter", () => {
       const storedSnapshot = {
         id: "test-1",
         state: "idle",
+        errorMessage: "",
         context: { count: 5, name: "test" },
         createdAt: createdAt.toISOString(),
         updatedAt: updatedAt.toISOString(),
@@ -130,6 +131,7 @@ describe("RedisAdapter", () => {
       const snapshot: Snapshot<TestContext, TestStates> = {
         id: "test-1",
         state: "running",
+        errorMessage: "",
         context: { count: 10, name: "updated" },
         createdAt,
         updatedAt,

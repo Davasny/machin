@@ -111,22 +111,32 @@ export type ValidatedMachineConfig<
             ? {
                 initial: TInitial;
                 states: TStates & ValidatedStateNodes<TContext, TStates>;
+                onActorError?: ActorErrorHandler<
+                  TContext,
+                  keyof TStates & string
+                >;
               }
             : {
                 initial: TInitial;
                 states: TStates & ValidatedStateNodes<TContext, TStates>;
+                onActorError?: ActorErrorHandler<
+                  TContext,
+                  keyof TStates & string
+                >;
                 __error: `Transition target in onError for state '${TInvalidError & string}' must be one of defined states`;
               }
           : never
         : {
             initial: TInitial;
             states: TStates & ValidatedStateNodes<TContext, TStates>;
+            onActorError?: ActorErrorHandler<TContext, keyof TStates & string>;
             __error: `Transition target in onSuccess for state '${TInvalidSuccess & string}' must be one of defined states`;
           }
       : never
     : {
         initial: TInitial;
         states: TStates & ValidatedStateNodes<TContext, TStates>;
+        onActorError?: ActorErrorHandler<TContext, keyof TStates & string>;
         __error: `Entry in state '${TInvalidEntry & string}' must return exactly the context type`;
       }
   : never;
@@ -149,6 +159,20 @@ export type TransitionGuard<TContext, TPayload = undefined, TError = never> = [
     ? (ctx: TContext) => boolean
     : (ctx: TContext, payload: TPayload) => boolean
   : (ctx: TContext, error: TError) => boolean;
+
+/**
+ * Payload delivered to the onActorError observer
+ */
+export interface ActorErrorPayload<TContext, TStates extends string> {
+  id: string;
+  state: TStates;
+  error: unknown;
+  context: TContext;
+}
+
+export type ActorErrorHandler<TContext, TStates extends string> = (
+  payload: ActorErrorPayload<TContext, TStates>,
+) => void;
 
 export interface TransitionBranch<
   TContext,
@@ -366,6 +390,7 @@ export interface MachineConfig<
 > {
   initial: TStates;
   states: TStateNodes;
+  onActorError?: ActorErrorHandler<TContext, TStates>;
 }
 
 /**
@@ -374,6 +399,7 @@ export interface MachineConfig<
 export interface InputMachineConfig<TStateNodes> {
   initial: string;
   states: TStateNodes;
+  onActorError?: ActorErrorHandler<unknown, string>;
 }
 
 // ============================================================
@@ -532,6 +558,7 @@ export interface MachineDefinition<
   config: {
     initial: TStates;
     states: TStateNodes;
+    onActorError?: ActorErrorHandler<TContext, TStates>;
   };
   _types: {
     context: TContext;
@@ -547,6 +574,7 @@ export interface MachineDefinition<
 export interface Snapshot<TContext, TStates extends string> {
   id: string;
   state: TStates;
+  errorMessage: string;
   context: TContext;
   createdAt: Date;
   updatedAt: Date;

@@ -15,6 +15,7 @@ export const subscriptionsTable = pgTable("subscriptions", {
     .primaryKey()
     .$defaultFn(() => uuidv7()),
   state: text().$type<SubscriptionState>().notNull(),
+  errorMessage: text().notNull(),
   createdAt: timestamp().notNull(),
   updatedAt: timestamp().notNull(),
 

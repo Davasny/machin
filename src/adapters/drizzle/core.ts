@@ -16,8 +16,19 @@ import type {
 /**
  * System fields that are required in the table but not part of context
  */
-export const SYSTEM_FIELDS = ["id", "state", "createdAt", "updatedAt"] as const;
-type SystemFields = "id" | "state" | "createdAt" | "updatedAt";
+export const SYSTEM_FIELDS = [
+  "id",
+  "state",
+  "errorMessage",
+  "createdAt",
+  "updatedAt",
+] as const;
+type SystemFields =
+  | "id"
+  | "state"
+  | "errorMessage"
+  | "createdAt"
+  | "updatedAt";
 
 /**
  * Minimal table interface that works across all Drizzle dialects
@@ -129,6 +140,7 @@ export class DrizzleAdapter<
     return {
       id: rowRecord["id"] as string,
       state: rowRecord["state"] as TStates,
+      errorMessage: rowRecord["errorMessage"] as string,
       context: context as TContext,
       createdAt: rowRecord["createdAt"] as Date,
       updatedAt: rowRecord["updatedAt"] as Date,
@@ -146,6 +158,7 @@ export class DrizzleAdapter<
     const insertData = {
       id,
       state,
+      errorMessage: "",
       createdAt: now,
       updatedAt: now,
       ...contextRecord,
@@ -156,6 +169,7 @@ export class DrizzleAdapter<
     return {
       id,
       state,
+      errorMessage: "",
       context,
       createdAt: now,
       updatedAt: now,
@@ -169,6 +183,7 @@ export class DrizzleAdapter<
 
     const updateData = {
       state: snapshot.state,
+      errorMessage: snapshot.errorMessage,
       updatedAt: snapshot.updatedAt,
       ...contextRecord,
     };

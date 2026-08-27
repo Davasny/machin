@@ -103,6 +103,7 @@ describe("Actor", () => {
       const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
         id: "test-1",
         state: "idle",
+        errorMessage: "",
         context: { count: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -126,6 +127,7 @@ describe("Actor", () => {
       const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
         id: "test-1",
         state: "idle",
+        errorMessage: "",
         context: { count: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -149,6 +151,7 @@ describe("Actor", () => {
       const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
         id: "test-1",
         state: "idle",
+        errorMessage: "",
         context: { count: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -175,6 +178,7 @@ describe("Actor", () => {
       > = {
         id: "test-2",
         state: "inactive",
+        errorMessage: "",
         context: { name: "", count: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -204,6 +208,7 @@ describe("Actor", () => {
       > = {
         id: "test-2",
         state: "inactive",
+        errorMessage: "",
         context: { name: "", count: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -230,6 +235,7 @@ describe("Actor", () => {
       > = {
         id: "test-3",
         state: "idle",
+        errorMessage: "",
         context: { error: null },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -249,6 +255,236 @@ describe("Actor", () => {
       expect(newActor.state).toBe("failed");
     });
 
+    it("stores thrown entry error message on the actor snapshot", async () => {
+      type Context = { result: string | null };
+
+      const m = machine<Context>().define({
+        initial: "idle",
+        states: {
+          idle: { on: { process: { target: "processing" } } },
+          processing: {
+            entry: () => {
+              throw new Error("boom");
+            },
+            onSuccess: { target: "done" },
+            onError: {
+              target: "failed",
+            },
+          },
+          done: {},
+          failed: {},
+        },
+      });
+
+      const actor = createActorFromSnapshot(
+        {
+          id: "test-error-context-1",
+          state: "idle",
+          errorMessage: "",
+          context: { result: null },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        m,
+        mockAdapter as Adapter<Context, "idle" | "processing" | "done" | "failed">,
+      );
+
+      const newActor = await actor.send("process", {});
+
+      expect(newActor.state).toBe("failed");
+      expect(newActor.context).toEqual({ result: null });
+      expect(savedSnapshots[0]?.errorMessage).toBe("boom");
+    });
+
+    it("stores error message when a guarded onError branch matches", async () => {
+      type Context = { retryable: boolean };
+
+      const m = machine<Context>().define({
+        initial: "idle",
+        states: {
+          idle: { on: { process: { target: "processing" } } },
+          processing: {
+            entry: (_ctx, event: { code: string }) => {
+              throw new Error(event.code);
+            },
+            onSuccess: { target: "done" },
+            onError: [
+              {
+                guard: (_ctx, error) =>
+                  error instanceof Error && error.message === "retryable",
+                target: "retryable_failed",
+              },
+              {
+                target: "failed",
+              },
+            ],
+          },
+          done: {},
+          retryable_failed: {},
+          failed: {},
+        },
+      });
+
+      const actor = createActorFromSnapshot(
+        {
+          id: "test-error-context-2",
+          state: "idle",
+          errorMessage: "",
+          context: { retryable: false },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        m,
+        mockAdapter as Adapter<
+          Context,
+          "idle" | "processing" | "done" | "retryable_failed" | "failed"
+        >,
+      );
+
+      const newActor = await actor.send("process", { code: "retryable" });
+
+      expect(newActor.state).toBe("retryable_failed");
+      expect(savedSnapshots[0]?.errorMessage).toBe("retryable");
+      expect(newActor.context).toEqual({ retryable: false });
+    });
+
+    it("re-throws and does not save when no onError branch matches", async () => {
+      type Context = { error: string | null };
+
+      const m = machine<Context>().define({
+        initial: "idle",
+        states: {
+          idle: { on: { process: { target: "processing" } } },
+          processing: {
+            entry: () => {
+              throw new Error("fatal");
+            },
+            onSuccess: { target: "done" },
+            onError: [
+              {
+                guard: (_ctx, error) =>
+                  error instanceof Error && error.message === "retryable",
+                target: "failed",
+              },
+            ],
+          },
+          done: {},
+          failed: {},
+        },
+      });
+
+      const actor = createActorFromSnapshot(
+        {
+          id: "test-error-context-3",
+          state: "idle",
+          errorMessage: "",
+          context: { error: null },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        m,
+        mockAdapter as Adapter<Context, "idle" | "processing" | "done" | "failed">,
+      );
+
+      await expect(actor.send("process", {})).rejects.toThrow("fatal");
+      expect(mockAdapter.save).not.toHaveBeenCalled();
+      expect(actor.context).toEqual({ error: null });
+    });
+
+    it("calls onActorError with a payload of id, failed entry state, error, and original context", async () => {
+      type Context = { error: string | null };
+      const onActorError = vi.fn();
+
+      const m = machine<Context>().define({
+        initial: "idle",
+        states: {
+          idle: { on: { process: { target: "processing" } } },
+          processing: {
+            entry: () => {
+              throw new Error("observed");
+            },
+            onSuccess: { target: "done" },
+            onError: {
+              target: "failed",
+            },
+          },
+          done: {},
+          failed: {},
+        },
+        onActorError,
+      });
+
+      const originalContext = { error: null };
+      const actor = createActorFromSnapshot(
+        {
+          id: "test-error-hook-1",
+          state: "idle",
+          errorMessage: "",
+          context: originalContext,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        m,
+        mockAdapter as Adapter<Context, "idle" | "processing" | "done" | "failed">,
+      );
+
+      const newActor = await actor.send("process", {});
+
+      expect(newActor.context.error).toBe(null);
+      expect(savedSnapshots[0]?.errorMessage).toBe("observed");
+      expect(onActorError).toHaveBeenCalledTimes(1);
+      expect(onActorError.mock.calls[0]?.[0]).toEqual({
+        id: "test-error-hook-1",
+        state: "processing",
+        error: expect.any(Error),
+        context: originalContext,
+      });
+    });
+
+    it("swallows onActorError exceptions and continues the onError transition", async () => {
+      type Context = { error: string | null };
+
+      const m = machine<Context>().define({
+        initial: "idle",
+        states: {
+          idle: { on: { process: { target: "processing" } } },
+          processing: {
+            entry: () => {
+              throw new Error("entry failed");
+            },
+            onSuccess: { target: "done" },
+            onError: {
+              target: "failed",
+            },
+          },
+          done: {},
+          failed: {},
+        },
+        onActorError: () => {
+          throw new Error("logger failed");
+        },
+      });
+
+      const actor = createActorFromSnapshot(
+        {
+          id: "test-error-hook-2",
+          state: "idle",
+          errorMessage: "",
+          context: { error: null },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        m,
+        mockAdapter as Adapter<Context, "idle" | "processing" | "done" | "failed">,
+      );
+
+      const newActor = await actor.send("process", {});
+
+      expect(newActor.state).toBe("failed");
+      expect(newActor.context.error).toBe(null);
+      expect(savedSnapshots[0]?.errorMessage).toBe("entry failed");
+    });
+
     it("transitions to onSuccess when entry succeeds", async () => {
       const snapshot: Snapshot<
         ErrorContext,
@@ -256,6 +492,7 @@ describe("Actor", () => {
       > = {
         id: "test-3",
         state: "idle",
+        errorMessage: "",
         context: { error: null },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -284,6 +521,7 @@ describe("Actor", () => {
       > = {
         id: "test-4",
         state: "idle",
+        errorMessage: "",
         context: { data: null },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -312,6 +550,7 @@ describe("Actor", () => {
       const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
         id: "test-next-events-1",
         state: "idle",
+        errorMessage: "",
         context: { count: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -352,6 +591,7 @@ describe("Actor", () => {
         {
           id: "test-next-events-2",
           state: "idle",
+          errorMessage: "",
           context: { enabled: false },
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -364,6 +604,7 @@ describe("Actor", () => {
         {
           id: "test-next-events-3",
           state: "idle",
+          errorMessage: "",
           context: { enabled: true },
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -383,6 +624,7 @@ describe("Actor", () => {
       > = {
         id: "test-next-events-4",
         state: "inactive",
+        errorMessage: "",
         context: { name: "", count: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -404,6 +646,7 @@ describe("Actor", () => {
       const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
         id: "test-next-events-5",
         state: "running",
+        errorMessage: "",
         context: { count: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -428,6 +671,7 @@ describe("Actor", () => {
         {
           id: "test-next-events-6",
           state: "done",
+          errorMessage: "",
           context: {},
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -443,6 +687,7 @@ describe("Actor", () => {
       const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
         id: "test-next-events-7",
         state: "idle",
+        errorMessage: "",
         context: { count: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -466,6 +711,7 @@ describe("Actor", () => {
       const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
         id: "test-1",
         state: "idle",
+        errorMessage: "",
         context: { count: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -489,6 +735,7 @@ describe("Actor", () => {
       const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
         id: "test-1",
         state: "idle",
+        errorMessage: "",
         context: { count: 0 },
         createdAt: originalCreatedAt,
         updatedAt: new Date(),
@@ -510,6 +757,7 @@ describe("Actor", () => {
       const snapshot: Snapshot<SimpleContext, "idle" | "running"> = {
         id: "test-1",
         state: "idle",
+        errorMessage: "",
         context: { count: 0 },
         createdAt: new Date(),
         updatedAt: originalUpdatedAt,
@@ -555,6 +803,7 @@ describe("Actor", () => {
       const snapshot: Snapshot<ValueContext, "a" | "b" | "c"> = {
         id: "test-5",
         state: "a",
+        errorMessage: "",
         context: { value: 42 },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -594,6 +843,7 @@ describe("Actor", () => {
       > = {
         id: "test-6",
         state: "idle",
+        errorMessage: "",
         context: {},
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -633,6 +883,7 @@ describe("Actor", () => {
       const snapshot: Snapshot<CountContext, "counting" | "incrementing"> = {
         id: "test-7",
         state: "counting",
+        errorMessage: "",
         context: { count: 0 },
         createdAt: new Date(),
         updatedAt: new Date(),

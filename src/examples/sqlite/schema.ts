@@ -25,6 +25,7 @@ export const subscriptionsTable = sqliteTable("subscriptions", {
     .primaryKey()
     .$defaultFn(() => uuidv7()),
   state: text("state").$type<SubscriptionState>().notNull(),
+  errorMessage: text("error_message").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 
