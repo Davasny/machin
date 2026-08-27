@@ -9,7 +9,12 @@ export default defineConfig({
   },
   format: ["esm"],
   target: "es2022",
-  dts: true,
+  // TODO: remove once tsup stops injecting baseUrl into the dts build (egoist/tsup#1388, egoist/tsup#1405)
+  dts: {
+    compilerOptions: {
+      ignoreDeprecations: "6.0",
+    },
+  },
   sourcemap: true,
   clean: true,
 });

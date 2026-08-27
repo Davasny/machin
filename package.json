@@ -68,7 +68,7 @@
     "pg": "8.23.0",
     "redis": "6.2.1",
     "tsup": "8.5.1",
-    "typescript": "7.0.2",
+    "typescript": "6.0.3",
     "uuid": "14.0.2",
     "vitest": "4.1.11",
     "yalc": "1.0.0-pre.53"
