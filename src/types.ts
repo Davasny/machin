@@ -98,48 +98,48 @@ type InvalidErrorTarget<TStateNodes> = {
  * - `{ stripeCustomerld: string }` → `{ stripeCustomerId: string }` ❌ (typo in key)
  * - `{ stripeCustomerId: string, extra: number }` → `{ stripeCustomerId: string }` ❌ (extra key)
  */
-export type ValidatedMachineConfig<
-  TContext,
-  TStates,
-  TInitial extends string,
-> = HasInvalidEntry<TContext, TStates> extends infer TInvalidEntry
-  ? [TInvalidEntry] extends [never]
-    ? InvalidSuccessTarget<TStates> extends infer TInvalidSuccess
-      ? [TInvalidSuccess] extends [never]
-        ? InvalidErrorTarget<TStates> extends infer TInvalidError
-          ? [TInvalidError] extends [never]
-            ? {
-                initial: TInitial;
-                states: TStates & ValidatedStateNodes<TContext, TStates>;
-                onActorError?: ActorErrorHandler<
-                  TContext,
-                  keyof TStates & string
-                >;
-              }
-            : {
-                initial: TInitial;
-                states: TStates & ValidatedStateNodes<TContext, TStates>;
-                onActorError?: ActorErrorHandler<
-                  TContext,
-                  keyof TStates & string
-                >;
-                __error: `Transition target in onError for state '${TInvalidError & string}' must be one of defined states`;
-              }
-          : never
-        : {
-            initial: TInitial;
-            states: TStates & ValidatedStateNodes<TContext, TStates>;
-            onActorError?: ActorErrorHandler<TContext, keyof TStates & string>;
-            __error: `Transition target in onSuccess for state '${TInvalidSuccess & string}' must be one of defined states`;
-          }
-      : never
-    : {
-        initial: TInitial;
-        states: TStates & ValidatedStateNodes<TContext, TStates>;
-        onActorError?: ActorErrorHandler<TContext, keyof TStates & string>;
-        __error: `Entry in state '${TInvalidEntry & string}' must return exactly the context type`;
-      }
-  : never;
+export type ValidatedMachineConfig<TContext, TStates, TInitial extends string> =
+  HasInvalidEntry<TContext, TStates> extends infer TInvalidEntry
+    ? [TInvalidEntry] extends [never]
+      ? InvalidSuccessTarget<TStates> extends infer TInvalidSuccess
+        ? [TInvalidSuccess] extends [never]
+          ? InvalidErrorTarget<TStates> extends infer TInvalidError
+            ? [TInvalidError] extends [never]
+              ? {
+                  initial: TInitial;
+                  states: TStates & ValidatedStateNodes<TContext, TStates>;
+                  onActorError?: ActorErrorHandler<
+                    TContext,
+                    keyof TStates & string
+                  >;
+                }
+              : {
+                  initial: TInitial;
+                  states: TStates & ValidatedStateNodes<TContext, TStates>;
+                  onActorError?: ActorErrorHandler<
+                    TContext,
+                    keyof TStates & string
+                  >;
+                  __error: `Transition target in onError for state '${TInvalidError & string}' must be one of defined states`;
+                }
+            : never
+          : {
+              initial: TInitial;
+              states: TStates & ValidatedStateNodes<TContext, TStates>;
+              onActorError?: ActorErrorHandler<
+                TContext,
+                keyof TStates & string
+              >;
+              __error: `Transition target in onSuccess for state '${TInvalidSuccess & string}' must be one of defined states`;
+            }
+        : never
+      : {
+          initial: TInitial;
+          states: TStates & ValidatedStateNodes<TContext, TStates>;
+          onActorError?: ActorErrorHandler<TContext, keyof TStates & string>;
+          __error: `Entry in state '${TInvalidEntry & string}' must return exactly the context type`;
+        }
+    : never;
 
 // ============================================================
 // State Node Types
@@ -555,14 +555,12 @@ export type ExtractEntryPayload<TStateNode> = TStateNode extends {
 /**
  * Get payload for an event by looking at target state's entry function
  */
-export type PayloadForEvent<
-  TStateNodes,
-  TEvent extends string,
-> = TargetStateForEvent<TStateNodes, TEvent> extends infer TTarget
-  ? TTarget extends keyof TStateNodes
-    ? ExtractEntryPayload<TStateNodes[TTarget]>
-    : undefined
-  : undefined;
+export type PayloadForEvent<TStateNodes, TEvent extends string> =
+  TargetStateForEvent<TStateNodes, TEvent> extends infer TTarget
+    ? TTarget extends keyof TStateNodes
+      ? ExtractEntryPayload<TStateNodes[TTarget]>
+      : undefined
+    : undefined;
 
 // ============================================================
 // Machine Definition (returned by machine())
