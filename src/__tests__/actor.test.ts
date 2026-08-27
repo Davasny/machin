@@ -286,7 +286,10 @@ describe("Actor", () => {
           updatedAt: new Date(),
         },
         m,
-        mockAdapter as Adapter<Context, "idle" | "processing" | "done" | "failed">,
+        mockAdapter as Adapter<
+          Context,
+          "idle" | "processing" | "done" | "failed"
+        >,
       );
 
       const newActor = await actor.send("process", {});
@@ -383,7 +386,10 @@ describe("Actor", () => {
           updatedAt: new Date(),
         },
         m,
-        mockAdapter as Adapter<Context, "idle" | "processing" | "done" | "failed">,
+        mockAdapter as Adapter<
+          Context,
+          "idle" | "processing" | "done" | "failed"
+        >,
       );
 
       await expect(actor.send("process", {})).rejects.toThrow("fatal");
@@ -425,7 +431,10 @@ describe("Actor", () => {
           updatedAt: new Date(),
         },
         m,
-        mockAdapter as Adapter<Context, "idle" | "processing" | "done" | "failed">,
+        mockAdapter as Adapter<
+          Context,
+          "idle" | "processing" | "done" | "failed"
+        >,
       );
 
       const newActor = await actor.send("process", {});
@@ -475,7 +484,10 @@ describe("Actor", () => {
           updatedAt: new Date(),
         },
         m,
-        mockAdapter as Adapter<Context, "idle" | "processing" | "done" | "failed">,
+        mockAdapter as Adapter<
+          Context,
+          "idle" | "processing" | "done" | "failed"
+        >,
       );
 
       const newActor = await actor.send("process", {});

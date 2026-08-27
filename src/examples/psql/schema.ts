@@ -1,7 +1,7 @@
 import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { v7 as uuidv7 } from "uuid";
-import { InferStates } from "@/index.js";
-import { subscribeMachineConfig } from "../subscribe-machine-config.js";
+import type { InferStates } from "@/index.js";
+import type { subscribeMachineConfig } from "../subscribe-machine-config.js";
 
 /**
  * Use type inference to ensure the state column matches the machine definition.

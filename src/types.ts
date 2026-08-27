@@ -251,12 +251,14 @@ export type StateNode<TContext, TStates extends string> =
  */
 export type InputStateNode<TContext> =
   | {
+      // biome-ignore lint/suspicious/noExplicitAny: loose input validation must accept any user payload type
       on?: Record<string, EventTransitionDefinition<TContext, string, any>>;
       entry?: undefined;
       onSuccess?: undefined;
       onError?: undefined;
     }
   | {
+      // biome-ignore lint/suspicious/noExplicitAny: loose input validation must accept any user payload type
       on?: Record<string, EventTransitionDefinition<TContext, string, any>>;
       // biome-ignore lint/suspicious/noExplicitAny: Need any to preserve the actual event type from user input
       entry: (ctx: TContext, event: any) => TContext | Promise<TContext>;
@@ -356,7 +358,8 @@ type ValidatedStateNodes<TContext, TStateNodes> = {
   [K in keyof TStateNodes]: TStateNodes[K] extends {
     entry: infer TEntry;
   }
-    ? TEntry extends (...args: any[]) => any
+    ? // biome-ignore lint/suspicious/noExplicitAny: required to test callable shape of user entry
+      TEntry extends (...args: any[]) => any
       ? {
           on?: TStateNodes[K] extends { on?: infer TOn }
             ? ValidatedOnMap<TContext, TStateNodes, TOn>
@@ -421,6 +424,7 @@ export type InferStatesFromConfig<TConfig> =
 /**
  * Extract all event names from state nodes (internal utility)
  */
+// biome-ignore lint/correctness/noUnusedVariables: internal helper kept for library consumers using type utilities
 type ExtractEventsFromStateNodes<TStateNodes> =
   TStateNodes extends Record<string, { on?: infer TOn }>
     ? TOn extends Record<string, unknown>
@@ -472,7 +476,12 @@ export type InferEventsFromStateNodes<TStateNodes> = {
  * ```
  */
 export type InferStates<TMachine> =
-  TMachine extends MachineDefinition<any, infer TStates, any, any>
+  TMachine extends MachineDefinition<
+    infer _TContext,
+    infer TStates,
+    infer _TEvents,
+    infer _TStateNodes
+  >
     ? TStates
     : never;
 
@@ -487,7 +496,12 @@ export type InferStates<TMachine> =
  * ```
  */
 export type InferEvents<TMachine> =
-  TMachine extends MachineDefinition<any, any, infer TEvents, any>
+  TMachine extends MachineDefinition<
+    infer _TContext,
+    infer _TStates,
+    infer TEvents,
+    infer _TStateNodes
+  >
     ? TEvents
     : never;
 
@@ -502,7 +516,12 @@ export type InferEvents<TMachine> =
  * ```
  */
 export type InferContext<TMachine> =
-  TMachine extends MachineDefinition<infer TContext, any, any, any>
+  TMachine extends MachineDefinition<
+    infer TContext,
+    infer _TStates,
+    infer _TEvents,
+    infer _TStateNodes
+  >
     ? TContext
     : never;
 

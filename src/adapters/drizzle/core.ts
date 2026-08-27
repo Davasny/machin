@@ -23,12 +23,7 @@ export const SYSTEM_FIELDS = [
   "createdAt",
   "updatedAt",
 ] as const;
-type SystemFields =
-  | "id"
-  | "state"
-  | "errorMessage"
-  | "createdAt"
-  | "updatedAt";
+type SystemFields = "id" | "state" | "errorMessage" | "createdAt" | "updatedAt";
 
 /**
  * Minimal table interface that works across all Drizzle dialects
@@ -118,7 +113,7 @@ export class DrizzleAdapter<
 
   async load(id: string): Promise<Snapshot<TContext, TStates> | null> {
     const tableAny = this.table as Record<string, unknown>;
-    const idColumn = tableAny["id"] as Parameters<typeof eq>[0];
+    const idColumn = tableAny.id as Parameters<typeof eq>[0];
 
     const results = await this.db
       .select()
@@ -138,12 +133,12 @@ export class DrizzleAdapter<
     }
 
     return {
-      id: rowRecord["id"] as string,
-      state: rowRecord["state"] as TStates,
-      errorMessage: rowRecord["errorMessage"] as string,
+      id: rowRecord.id as string,
+      state: rowRecord.state as TStates,
+      errorMessage: rowRecord.errorMessage as string,
       context: context as TContext,
-      createdAt: rowRecord["createdAt"] as Date,
-      updatedAt: rowRecord["updatedAt"] as Date,
+      createdAt: rowRecord.createdAt as Date,
+      updatedAt: rowRecord.updatedAt as Date,
     };
   }
 
@@ -178,7 +173,7 @@ export class DrizzleAdapter<
 
   async save(snapshot: Snapshot<TContext, TStates>): Promise<void> {
     const tableAny = this.table as Record<string, unknown>;
-    const idColumn = tableAny["id"] as Parameters<typeof eq>[0];
+    const idColumn = tableAny.id as Parameters<typeof eq>[0];
     const contextRecord = snapshot.context as Record<string, unknown>;
 
     const updateData = {

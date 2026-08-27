@@ -1,7 +1,7 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { v7 as uuidv7 } from "uuid";
-import { InferStates } from "@/index.js";
-import { subscribeMachineConfig } from "../subscribe-machine-config.js";
+import type { InferStates } from "@/index.js";
+import type { subscribeMachineConfig } from "../subscribe-machine-config.js";
 
 /**
  * SQLite Schema for Subscriptions

@@ -463,7 +463,6 @@ describe("Type Inference", () => {
         failed: {},
       },
     });
-
   });
 
   it("infers union payloads when guarded branches target different entry payloads", () => {

@@ -39,6 +39,7 @@
     "test:types": "vitest run --typecheck",
     "test:release": "node .github/scripts/validate-version.test.cjs",
     "lint": "tsc --noEmit",
+    "check": "biome check . && pnpm lint && pnpm test",
     "publish:local": "yalc publish"
   },
   "keywords": [
