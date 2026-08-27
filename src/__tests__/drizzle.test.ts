@@ -261,8 +261,15 @@ describe("withDrizzleSQLite()", () => {
 
       expect(newActor.state).toBe("active");
       expect(newActor.context.name).toBe("NewName");
-      expect(updateCalls.length).toBeGreaterThan(0);
+      expect(updateCalls).toHaveLength(2);
+      // Write-ahead: entering state persisted before the entry runs
       expect(updateCalls[0]?.set).toMatchObject({
+        state: "activating",
+        errorMessage: "",
+        name: null,
+        count: 0,
+      });
+      expect(updateCalls[1]?.set).toMatchObject({
         state: "active",
         errorMessage: "",
         name: "NewName",

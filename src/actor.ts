@@ -200,6 +200,16 @@ class ActorImpl<
 
     // Execute entry function if defined
     if (targetStateConfig?.entry) {
+      // persist the entering state before running the entry
+      await this.adapter.save({
+        id: this.id,
+        state: targetStateName as TStates,
+        errorMessage: "",
+        context: this.context,
+        createdAt: this.snapshot.createdAt,
+        updatedAt: new Date(),
+      });
+
       try {
         const result = targetStateConfig.entry(this.context, payload);
         newContext = result instanceof Promise ? await result : result;

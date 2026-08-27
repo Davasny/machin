@@ -152,10 +152,13 @@ describe("Transition Flows", () => {
       expect(actor.state).toBe("completed");
       expect(actor.context.paymentId).toBe("PAY-456");
 
-      // Verify all state changes were persisted
-      expect(savedSnapshots).toHaveLength(2);
-      expect(savedSnapshots[0]?.state).toBe("awaiting_payment");
-      expect(savedSnapshots[1]?.state).toBe("completed");
+      // Verify all state changes were persisted. Each transition into an entry
+      // state is persisted twice: write-ahead (entering state) then outcome.
+      expect(savedSnapshots).toHaveLength(4);
+      expect(savedSnapshots[0]?.state).toBe("processing");
+      expect(savedSnapshots[1]?.state).toBe("awaiting_payment");
+      expect(savedSnapshots[2]?.state).toBe("charging");
+      expect(savedSnapshots[3]?.state).toBe("completed");
     });
 
     it("handles errors and recovery", async () => {
@@ -542,6 +545,62 @@ describe("Transition Flows", () => {
 
       expect(actor.state).toBe("checking_wfirma_state_failed");
       expect(actor.context).toEqual(initialSnapshot.context);
+    });
+  });
+
+  describe("Machine state persistence", () => {
+    it("checks if machine state is persisted immediately after firing event", async () => {
+      const m = machine().define({
+        initial: "idle",
+        states: {
+          idle: { on: { start: { target: "in_progress" } } },
+          in_progress: {
+            entry: async (_ctx, _event: undefined) => {
+              // dummy wait just to test if we have in_progress state stored in adapter
+              await new Promise((resolve) => setTimeout(resolve, 500));
+            },
+            onSuccess: { target: "done" },
+          },
+          done: { on: { reset: { target: "idle" } } },
+        },
+      });
+
+      const { adapter, savedSnapshots } = createMockAdapter<
+        unknown,
+        "idle" | "in_progress" | "done"
+      >();
+
+      // spawn machine
+      const initialSnapshot: Snapshot<
+        unknown,
+        "idle" | "in_progress" | "done"
+      > = {
+        id: "persist-1",
+        state: "idle",
+        errorMessage: "",
+        context: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const actor = createActorFromSnapshot(initialSnapshot, m, adapter);
+
+      // no await
+      const pendingSend = actor.send("start");
+
+      await vi.waitFor(() => {
+        expect(savedSnapshots[0]?.state).toBe("in_progress");
+      });
+
+      expect(adapter.save).toHaveBeenCalledTimes(1);
+      expect(savedSnapshots[0]?.context).toEqual({});
+      expect(savedSnapshots[0]?.errorMessage).toBe("");
+
+      // wait for timeout completion
+      const finalActor = await pendingSend;
+      expect(finalActor.state).toBe("done");
+      expect(adapter.save).toHaveBeenCalledTimes(2);
+      expect(savedSnapshots[1]?.state).toBe("done");
     });
   });
 });

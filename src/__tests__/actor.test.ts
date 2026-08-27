@@ -296,7 +296,8 @@ describe("Actor", () => {
 
       expect(newActor.state).toBe("failed");
       expect(newActor.context).toEqual({ result: null });
-      expect(savedSnapshots[0]?.errorMessage).toBe("boom");
+      expect(savedSnapshots[0]?.errorMessage).toBe("");
+      expect(savedSnapshots[1]?.errorMessage).toBe("boom");
     });
 
     it("stores error message when a guarded onError branch matches", async () => {
@@ -347,11 +348,12 @@ describe("Actor", () => {
       const newActor = await actor.send("process", { code: "retryable" });
 
       expect(newActor.state).toBe("retryable_failed");
-      expect(savedSnapshots[0]?.errorMessage).toBe("retryable");
+      expect(savedSnapshots[0]?.errorMessage).toBe("");
+      expect(savedSnapshots[1]?.errorMessage).toBe("retryable");
       expect(newActor.context).toEqual({ retryable: false });
     });
 
-    it("re-throws and does not save when no onError branch matches", async () => {
+    it("re-throws when no onError branch matches (entry state still persisted)", async () => {
       type Context = { error: string | null };
 
       const m = machine<Context>().define({
@@ -393,7 +395,9 @@ describe("Actor", () => {
       );
 
       await expect(actor.send("process", {})).rejects.toThrow("fatal");
-      expect(mockAdapter.save).not.toHaveBeenCalled();
+      // Write-ahead: the entering state is persisted even when the entry fails fatal
+      expect(mockAdapter.save).toHaveBeenCalledTimes(1);
+      expect(savedSnapshots[0]?.state).toBe("processing");
       expect(actor.context).toEqual({ error: null });
     });
 
@@ -440,7 +444,8 @@ describe("Actor", () => {
       const newActor = await actor.send("process", {});
 
       expect(newActor.context.error).toBe(null);
-      expect(savedSnapshots[0]?.errorMessage).toBe("observed");
+      expect(savedSnapshots[0]?.errorMessage).toBe("");
+      expect(savedSnapshots[1]?.errorMessage).toBe("observed");
       expect(onActorError).toHaveBeenCalledTimes(1);
       expect(onActorError.mock.calls[0]?.[0]).toEqual({
         id: "test-error-hook-1",
@@ -494,7 +499,8 @@ describe("Actor", () => {
 
       expect(newActor.state).toBe("failed");
       expect(newActor.context.error).toBe(null);
-      expect(savedSnapshots[0]?.errorMessage).toBe("entry failed");
+      expect(savedSnapshots[0]?.errorMessage).toBe("");
+      expect(savedSnapshots[1]?.errorMessage).toBe("entry failed");
     });
 
     it("transitions to onSuccess when entry succeeds", async () => {
