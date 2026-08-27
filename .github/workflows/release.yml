@@ -22,17 +22,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: pnpm/setup@v1
         with:
-          node-version: 22
-          cache: 'pnpm'
+          version: 11
+          runtime: node@22
+          cache: true
 
       - name: Update npm to latest
-        run: npm install -g npm@12.0.0
+        run: npm install -g npm@11.7.0
 
       - name: Validate version
         run: node .github/scripts/validate-version.cjs ${{ inputs.version }}
